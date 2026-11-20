@@ -363,12 +363,14 @@ const M = {
   corridorCeiling: 235,  // koridor yüksekliği (asma tavan)
   doorGap: 100,          // kapı boşluğu genişliği
   doorHeight: 215,       // kapı boşluğu yüksekliği
-  salon:    { w: 306, dTotal: 553, dLiving: 393 },   // salon + açık mutfak
+  salon:    { w: 306, dLiving: 393, island: 50, dKitchen: 160 }, // salon · ada tezgah · açık mutfak (Z)
   study:    { w: 260, d: 410, topWall: 162 },        // çalışma odası
-  corridor: { shortD: 97, longW: 128, longD: 193 }, // L: kısa kol Z · uzun kol X ve Z (kısa kolun üstünden)
+  corridor: { shortD: 97, longW: 128, longD: 203 }, // L: kısa kol Z · uzun kol X ve Z (kısa kolun üstünden)
   bedroom:  { w: 280, d: 256, straight: 120, niche: 60, nicheDepth: 5 }, // küçük oda
-  // Banyo ölçülmedi: kalan alandan hesaplanır (genişlik 280 − 128 − 10, derinlik 97 + 193)
+  // Banyo ölçülmedi: kalan alandan hesaplanır (genişlik 280 − 128 − 10, derinlik 97 + 203)
 };
+// Salon + ada tezgah + açık mutfak toplam Z (393 + 50 + 160)
+const SALON_D = M.salon.dLiving + M.salon.island + M.salon.dKitchen;
 
 /* =====================================================================
    2) YERLEŞİM — plan koordinatları (x: sağa, z: ağaçlık cepheden caddeye).
@@ -377,12 +379,13 @@ const M = {
 const ti = M.wallIn, te = M.wallEx, H = M.height;
 const L = (() => {
   const o = {};
-  o.salon = { x0: 0, x1: M.salon.w, z0: 0, z1: M.salon.dTotal };
-  o.kitchenZ = M.salon.dLiving;                                       // ada tezgah hattı
+  o.salon = { x0: 0, x1: M.salon.w, z0: 0, z1: SALON_D };
+  o.kitchenZ = M.salon.dLiving;                                       // ada tezgah alanının başı
+  o.kitchenZ1 = M.salon.dLiving + M.salon.island;                     // açık mutfağın başı
   o.mid = { x0: o.salon.x1, x1: o.salon.x1 + ti };                    // salon | çalışma ortak duvarı
-  o.study = { x0: o.mid.x1, x1: o.mid.x1 + M.study.w, z0: M.salon.dTotal - M.study.d, z1: M.salon.dTotal };
+  o.study = { x0: o.mid.x1, x1: o.mid.x1 + M.study.w, z0: SALON_D - M.study.d, z1: SALON_D };
   o.right = o.study.x1;                                               // sağ (komşu) duvarın iç yüzü
-  o.top = { z0: M.salon.dTotal, z1: M.salon.dTotal + ti };            // salon/çalışma arka duvarı
+  o.top = { z0: SALON_D, z1: SALON_D + ti };            // salon/çalışma arka duvarı
   o.salonDoor = { x0: o.salon.x1 - M.doorGap, x1: o.salon.x1 };       // mutfak tarafı kapı boşluğu
   o.studyDoor = { x0: o.study.x0, x1: o.study.x1 - M.study.topWall }; // 260 − 162 = 98
   o.balcony = { x0: o.study.x0, x1: o.study.x1, z0: -te, z1: o.study.z0 - ti };
@@ -808,7 +811,7 @@ function railing(x0, x1, zc, h = 105) {
 
 // Zeminler
 floor(0, L.salon.x1, 0, L.kitchenZ, texParquet, 160);                       // salon
-floor(0, L.salon.x1, L.kitchenZ, L.salon.z1, texTile, 120);                 // açık mutfak
+floor(0, L.salon.x1, L.kitchenZ, L.salon.z1, texTile, 120);                 // ada tezgah + açık mutfak
 floor(L.study.x0, L.study.x1, L.study.z0, L.study.z1, texParquet, 160);     // çalışma
 floor(L.balcony.x0, L.balcony.x1, L.balcony.z0, L.balcony.z1, texDeck, 112); // balkon
 floor(L.corrS.x0, L.corrS.x1, L.corrS.z0, L.corrS.z1, texTile, 120);        // koridor kısa kol
@@ -878,44 +881,53 @@ F(22, 97, 40, 112, 8, 42, mat.fabric2);
 F(22, 36, 40, 112, 42, 80, mat.fabric2);
 cyl(288, 128, 13, 0, 36, mat.terracotta);
 ball(288, 128, 24, 64, mat.plant);
-// Açık mutfak
-F(0, 135, 493, 553, 0, 86, mat.white);
-F(0, 137, 490, 553, 86, 90, mat.stone);
-F(72, 122, 503, 543, 90, 90.8, mat.black);
-F(15, 60, 505, 541, 89.6, 90.7, mat.appliance);
-F(0, 135, 520, 553, 150, 222, mat.white);
-F(137, 200, 488, 553, 0, 202, mat.appliance);
-F(30, 180, 365, 420, 0, 88, mat.woodDark);
-F(22, 188, 340, 425, 88, 92, mat.stone);
-for (const x of [70, 140]) {
-  cyl(x, 332, 2.5, 2, 62, mat.black, 12);
-  cyl(x, 332, 16, 62, 66, mat.wood);
-  cyl(x, 332, 13, 0, 2, mat.black);
+// Açık mutfak (arka duvar boyunca) ve ada tezgah (salon ile mutfak arasındaki 50 cm'lik şerit)
+{
+  const T = L.salon.z1, iz0 = L.kitchenZ, iz1 = L.kitchenZ1;
+  F(0, 135, T - 60, T, 0, 86, mat.white);
+  F(0, 137, T - 63, T, 86, 90, mat.stone);
+  F(72, 122, T - 50, T - 10, 90, 90.8, mat.black);
+  F(15, 60, T - 48, T - 12, 89.6, 90.7, mat.appliance);
+  F(0, 135, T - 33, T, 150, 222, mat.white);
+  F(137, 200, T - 65, T, 0, 202, mat.appliance);
+  F(30, 180, iz0 + 4, iz1 - 4, 0, 88, mat.woodDark);
+  F(22, 188, iz0 - 12, iz1, 88, 92, mat.stone);
+  for (const x of [70, 140]) {
+    cyl(x, iz0 - 22, 2.5, 2, 62, mat.black, 12);
+    cyl(x, iz0 - 22, 16, 62, 66, mat.wood);
+    cyl(x, iz0 - 22, 13, 0, 2, mat.black);
+  }
 }
-// Çalışma odası
-F(400, 505, 215, 425, 0.6, 1.6, mat.rug2);
-F(516, 576, 250, 390, 72, 75, mat.woodLight);
-F(518, 574, 252, 256, 0, 72, mat.woodLight);
-F(518, 574, 384, 388, 0, 72, mat.woodLight);
-F(566, 569, 298, 342, 92, 128, mat.black);
-F(564, 572, 314, 326, 75, 92, mat.black);
-cyl(490, 320, 2.5, 0, 44, mat.black, 12);
-F(470, 510, 300, 340, 44, 50, mat.fabric);
-F(466, 471, 302, 338, 50, 92, mat.fabric);
-F(430, 570, 522, 553, 0, 200, mat.woodLight);
-F(316, 400, 180, 380, 0, 40, mat.white);
-F(320, 396, 184, 376, 40, 50, mat.fabric2);
-F(316, 332, 180, 380, 50, 82, mat.fabric2);
+// Çalışma odası (konumlar odanın balkon tarafı iç yüzüne göre)
+{
+  const z = L.study.z0;
+  F(400, 505, z + 72, z + 282, 0.6, 1.6, mat.rug2);
+  F(516, 576, z + 107, z + 247, 72, 75, mat.woodLight);
+  F(518, 574, z + 109, z + 113, 0, 72, mat.woodLight);
+  F(518, 574, z + 241, z + 245, 0, 72, mat.woodLight);
+  F(566, 569, z + 155, z + 199, 92, 128, mat.black);
+  F(564, 572, z + 171, z + 183, 75, 92, mat.black);
+  cyl(490, z + 177, 2.5, 0, 44, mat.black, 12);
+  F(470, 510, z + 157, z + 197, 44, 50, mat.fabric);
+  F(466, 471, z + 159, z + 195, 50, 92, mat.fabric);
+  F(430, 570, L.study.z1 - 31, L.study.z1, 0, 200, mat.woodLight);
+  F(316, 400, z + 37, z + 237, 0, 40, mat.white);
+  F(320, 396, z + 41, z + 233, 40, 50, mat.fabric2);
+  F(316, 332, z + 37, z + 237, 50, 82, mat.fabric2);
+}
 // Balkon
-cyl(446, 55, 28, 70, 73, mat.white);
-cyl(446, 55, 2.5, 0, 70, mat.black, 12);
-for (const [x0, bx] of [[380, 380], [474, 508]]) {
-  F(x0, x0 + 38, 36, 74, 42, 46, mat.woodLight);
-  F(bx, bx + 4, 36, 74, 46, 85, mat.woodLight);
-  cyl(x0 + 19, 55, 2, 0, 42, mat.black, 10);
+{
+  const c = (L.balcony.z0 + L.balcony.z1) / 2;
+  cyl(446, c, 28, 70, 73, mat.white);
+  cyl(446, c, 2.5, 0, 70, mat.black, 12);
+  for (const [x0, bx] of [[380, 380], [474, 508]]) {
+    F(x0, x0 + 38, c - 19, c + 19, 42, 46, mat.woodLight);
+    F(bx, bx + 4, c - 19, c + 19, 46, 85, mat.woodLight);
+    cyl(x0 + 19, c, 2, 0, 42, mat.black, 10);
+  }
+  cyl(552, L.balcony.z1 - 25, 16, 0, 40, mat.terracotta);
+  ball(552, L.balcony.z1 - 25, 24, 64, mat.plant);
 }
-cyl(552, 108, 16, 0, 40, mat.terracotta);
-ball(552, 108, 24, 64, mat.plant);
 // Banyo — sağ (komşu) duvar boyunca: klozet · lavabo · çamaşır makinesi · duşakabin
 {
   const { x1, z0, z1 } = L.bath;
@@ -1004,30 +1016,32 @@ const corrSW = L.corrS.x1 - L.corrS.x0;
 const corrLW = L.corrL.x1 - L.corrL.x0;
 const bathW = L.bath.x1 - L.bath.x0;
 const bathD = L.bath.z1 - L.bath.z0;
-const balconyD = M.salon.dTotal - M.study.d;
+const balconyD = SALON_D - M.study.d;
 
 const ROOMS = [
   { name: 'Salon', dims: `${M.salon.w} × ${M.salon.dLiving}`, m2: area(M.salon.w, M.salon.dLiving), st: 'ok',
     box: [0, L.salon.x1, 0, L.kitchenZ], label: [L.salon.x1 / 2, 215] },
-  { name: 'Açık mutfak', dims: `${M.salon.w} × ${M.salon.dTotal - M.salon.dLiving}`, m2: area(M.salon.w, M.salon.dTotal - M.salon.dLiving), st: 'calc',
-    box: [0, L.salon.x1, L.kitchenZ, L.salon.z1], label: [L.salon.x1 / 2, 462] },
+  { name: 'Ada tezgah', dims: `${M.salon.w} × ${M.salon.island}`, m2: area(M.salon.w, M.salon.island), st: 'est', noLabel: true,
+    box: [0, L.salon.x1, L.kitchenZ - 60, L.kitchenZ1 + 60] },
+  { name: 'Açık mutfak', dims: `${M.salon.w} × ${M.salon.dKitchen}`, m2: area(M.salon.w, M.salon.dKitchen), st: 'calc',
+    box: [0, L.salon.x1, L.kitchenZ1, L.salon.z1], label: [L.salon.x1 / 2, (L.kitchenZ1 + L.salon.z1) / 2] },
   { name: 'Çalışma odası', dims: `${M.study.w} × ${M.study.d}`, m2: area(M.study.w, M.study.d), st: 'ok',
-    box: [L.study.x0, L.study.x1, L.study.z0, L.study.z1], label: [(L.study.x0 + L.study.x1) / 2, 455] },
+    box: [L.study.x0, L.study.x1, L.study.z0, L.study.z1], label: [(L.study.x0 + L.study.x1) / 2, L.study.z1 - 98] },
   { name: 'Balkon', dims: `${M.study.w} × ${balconyD}`, m2: area(M.study.w, balconyD), st: 'calc', outside: true,
-    box: [L.balcony.x0, L.balcony.x1, L.balcony.z0, L.balcony.z1], label: [(L.balcony.x0 + L.balcony.x1) / 2, 95] },
+    box: [L.balcony.x0, L.balcony.x1, L.balcony.z0, L.balcony.z1], label: [(L.balcony.x0 + L.balcony.x1) / 2, (L.balcony.z0 + L.balcony.z1) / 2 + 30] },
   { name: 'Koridor', dims: `${corrSW}×${M.corridor.shortD} + ${corrLW}×${corrLen}`, m2: area(corrSW, M.corridor.shortD) + area(corrLW, corrLen), st: 'est',
     box: [L.corrS.x0, L.corrL.x1, L.corrS.z0, L.corrL.z1], label: [(L.corrS.x0 + L.corrS.x1) / 2, (L.corrS.z0 + L.corrS.z1) / 2], sub: `L · tavan ${M.corridorCeiling}` },
   { name: 'Banyo', dims: `${bathW} × ${bathD}`, m2: area(bathW, bathD), st: 'est',
     box: [L.bath.x0, L.bath.x1, L.bath.z0, L.bath.z1], label: [(L.bath.x0 + L.bath.x1) / 2, L.bath.z1 - 60] },
   { name: 'Yatak odası', dims: `${M.bedroom.w} × ${M.bedroom.d}`, m2: area(M.bedroom.w, M.bedroom.d), st: 'ok',
-    box: [L.bed.x0, L.bed.x1, L.bed.z0, L.bed.z1], label: [(L.bed.x0 + L.bed.x1) / 2, 960] },
+    box: [L.bed.x0, L.bed.x1, L.bed.z0, L.bed.z1], label: [(L.bed.x0 + L.bed.x1) / 2, L.bed.z0 + 117] },
 ];
 const ST = { ok: 'ölçü', calc: 'hesap', est: 'tahmin' };
 
 const labelDefs = [
-  ...ROOMS.map(r => ({ title: r.name, sub: r.sub || `${r.dims} cm`, x: r.label[0], z: r.label[1], y: 140 })),
+  ...ROOMS.filter(r => !r.noLabel).map(r => ({ title: r.name, sub: r.sub || `${r.dims} cm`, x: r.label[0], z: r.label[1], y: 140 })),
   { title: 'Bina holü', sub: 'giriş · çelik kapı', x: L.corrL.x0 - te - 100, z: L.entry.z1 + 20, y: 20, minor: true },
-  { title: 'AĞAÇLIK ALAN CEPHESİ', x: (L.outer.x0 + L.outer.x1) / 2, z: -110, y: 0, variant: 'facade' },
+  { title: 'AĞAÇLIK ALAN CEPHESİ', x: (L.outer.x0 + L.outer.x1) / 2, z: -80, y: 0, variant: 'facade' },
   { title: 'CADDE CEPHESİ', x: (L.bed.x0 + L.bed.x1) / 2, z: L.outer.z1 + 90, y: 0, variant: 'facade' },
 ];
 const labelSprites = [];
@@ -1133,7 +1147,8 @@ function fitRadius() {
   const w = canvas.clientWidth - viewShift * 2, h = canvas.clientHeight;
   const vf = THREE.MathUtils.degToRad(camera.fov);
   const hf = 2 * Math.atan(Math.tan(vf / 2) * (Math.max(w, 200) / h));
-  return 700 / Math.sin(Math.min(vf, hf) / 2);
+  const R = 0.5 * Math.hypot(L.outer.x1 - L.outer.x0, L.outer.z1 - L.outer.z0, H) + 30;
+  return R / Math.sin(Math.min(vf, hf) / 2);
 }
 function resetView() {
   goal.yaw = HOME.yaw;
@@ -1317,7 +1332,8 @@ collapseBtn.addEventListener('click', () => setCollapsed(!panelEl.classList.cont
 
   const items = [
     `<b>Duvarlar:</b> iç bölme <span class="num">${ti}</span> cm, cephe ve komşu duvarlar <span class="num">${te}</span> cm. Verilen ölçüler iç yüzden iç yüze.`,
-    `<b>Balkon:</b> <span class="num">${M.salon.dTotal} − ${M.study.d} = ${balconyD}</span> cm derinlik, <span class="num">${M.study.w}</span> cm genişlik.`,
+    `<b>Salon bloğu (Z):</b> salon <span class="num">${M.salon.dLiving}</span> + ada tezgah <span class="num">${M.salon.island}</span> + açık mutfak <span class="num">${M.salon.dKitchen}</span> = <span class="num">${SALON_D}</span> cm. Ada tezgah payı tahmini (50–60).`,
+    `<b>Balkon:</b> <span class="num">${SALON_D} − ${M.study.d} = ${balconyD}</span> cm derinlik, <span class="num">${M.study.w}</span> cm genişlik.`,
     `<b>Koridor kısa kolu:</b> <span class="num">${corrSW} × ${M.corridor.shortD}</span>. X, salon kapısının sol kenarından uzun kolun sağ duvarına kadar (duvarlarla ≈ <span class="num">${corrSW + 2 * ti}</span>).`,
     `<b>Koridor uzun kolu:</b> <span class="num">${corrLW} × ${corrLen}</span>, kısa kolun üstünden yatak odası duvarına kadar. Yatak odası kapısının sol kenarı koridorun sol duvarıyla hizalı.`,
     `<b>Banyo (kalan alan):</b> genişlik <span class="num">${M.bedroom.w} − ${corrLW} − ${ti} = ${bathW}</span>, derinlik <span class="num">${M.corridor.shortD} + ${corrLen} = ${bathD}</span> cm.`,
