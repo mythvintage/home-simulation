@@ -500,6 +500,15 @@ const mat = {
   plant: std('#5d8a4f'),
   terracotta: std('#b4643f'),
   mirror: std('#d6e4ea', { roughness: 0.08, metalness: 0.25 }),
+  riser: std('#4a4852', { roughness: 1 }),
+  drumShell: std('#e8e8ee', { roughness: 0.35, metalness: 0.25 }),
+  drumHead: std('#2b2a30', { roughness: 0.9 }),
+  chrome: std('#c4c7cc', { roughness: 0.25, metalness: 0.85 }),
+  cymbal: std('#34312e', { roughness: 0.45, metalness: 0.4 }),
+  synth: std('#232227', { roughness: 0.5 }),
+  keyWhite: std('#f4f3ef', { roughness: 0.35 }),
+  keyBlack: std('#151517', { roughness: 0.4 }),
+  lcd: std('#6a8fb5', { roughness: 0.2, emissive: '#1d2f45', emissiveIntensity: 0.6 }),
 };
 const wallMats = [mat.wall, mat.wall, mat.cap, mat.wall, mat.wall, mat.wall];
 
@@ -752,6 +761,93 @@ function hingedDoor({ name, key, axis, c, t, a0, a1, hinge = 'a0', swing, kind =
   return door;
 }
 
+/* ---------- Dolap kapağı: menteşeli, odaya doğru açılır (kapı gibi tıklanır) ---------- */
+function cabinetDoor({ name, axis, c, a0, a1, hinge, swing, y0, y1, t = 2 }) {
+  const dir = hinge === 'a0' ? 1 : -1;
+  const ha = hinge === 'a0' ? a0 : a1;
+  const w = (a1 - a0) - 0.6;
+  const off = swing * t / 2;
+  const [px, pz] = axis === 'x' ? [ha + dir * 0.3, c + off] : [c + off, ha + dir * 0.3];
+  const n = axis === 'x' ? [0, swing] : [swing, 0];
+  const u = axis === 'x' ? [dir, 0] : [0, dir];
+  const thetaC = Math.atan2(u[1], u[0]);
+  let thetaO = thetaC + Math.PI / 2;
+  if (Math.cos(thetaO) * n[0] + Math.sin(thetaO) * n[1] < 0) thetaO = thetaC - Math.PI / 2;
+  const pivot = new THREE.Group();
+  pivot.position.set(px, 0, -pz);
+  pivot.rotation.y = thetaC;
+  furniture.add(pivot);
+  const lm = mat.white.clone();
+  lbox(pivot, 0, w, y0, y1, -t / 2, t / 2, lm);
+  // kulp: kapağın oda tarafındaki yüzünde, açılan kenara yakın
+  const sgn = Math.sign(Math.sin(thetaC) * n[0] - Math.cos(thetaC) * n[1]) || 1;
+  const hy = (y0 + y1) / 2;
+  lbox(pivot, w - 5, w - 3.6, hy - 14, hy + 14, sgn * t / 2, sgn * (t / 2 + 2.5), mat.handle);
+  const door = { name, kind: 'hinge', pivot, thetaC, thetaO, p: 0, target: 0, mats: [lm], furniture: true };
+  registerDoor(door, pivot);
+  return door;
+}
+
+/* ---------- Döner tekli koltuk: tıklandıkça 45° döner ---------- */
+const spinners = [];
+function swivelChair({ name, x, z, angle }) {
+  const pivot = new THREE.Group();
+  pivot.position.set(x, 0, -z);
+  pivot.rotation.y = angle;
+  furniture.add(pivot);
+  const fm = mat.fabric2.clone(), cm = mat.fabric.clone();
+  // yerel +x koltuğun baktığı yön
+  lbox(pivot, -36, 36, 8, 40, -36, 36, fm);       // oturak gövdesi
+  lbox(pivot, -36, -22, 40, 82, -36, 36, fm);     // sırt
+  lbox(pivot, -22, 36, 40, 60, -36, -26, fm);     // kolçaklar
+  lbox(pivot, -22, 36, 40, 60, 26, 36, fm);
+  lbox(pivot, -21, 34, 40, 48, -25, 25, cm);      // minder
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(22, 26, 8, 32), mat.woodDark);
+  base.position.y = 4;
+  base.castShadow = base.receiveShadow = true;
+  pivot.add(base);
+  const sp = { name, pivot, angle, target: angle, mats: [fm, cm] };
+  pivot.traverse(o => { if (o.isMesh) { o.userData.spin = sp; furnitureMeshes.push(o); } });
+  spinners.push(sp);
+  return sp;
+}
+
+/* ---------- Kitaplık: sırtı x0 duvarında, önü +x yönünde ---------- */
+function bookshelf(x0, x1, z0, z1, h, rows, seed) {
+  const t = 2, i0 = z0 + t, i1 = z1 - t;
+  F(x0, x1, z0, i0, 0, h, mat.woodLight);
+  F(x0, x1, i1, z1, 0, h, mat.woodLight);
+  F(x0, x0 + 1.5, i0, i1, 8, h, mat.woodLight);
+  F(x0, x1, i0, i1, 0, 8, mat.woodLight);
+  const gap = (h - 8) / rows;
+  for (let i = 1; i <= rows; i++) F(x0, x1, i0, i1, 8 + i * gap - t, 8 + i * gap, mat.woodLight);
+  const r = rng(seed);
+  const palette = ['#7a2e2e', '#2f4a6b', '#c9a24a', '#3d5a3d', '#d9d2c3', '#5b3f6e', '#a5552f', '#1f2a36', '#8b8f96'];
+  const books = [];
+  for (let i = 0; i < rows; i++) {
+    const base = 8 + i * gap;
+    let z = i0 + 1;
+    while (z < i1 - 4) {
+      const bw = 2 + r() * 2.5;
+      if (z + bw > i1 - 1) break;
+      if (r() < 0.07) { z += 6 + r() * 8; continue; }
+      books.push({ z0: z, z1: z + bw, h: Math.min(gap - t - 3, 18 + r() * 10), d: 17 + r() * 8, y: base, c: palette[Math.floor(r() * palette.length)] });
+      z += bw + 0.3;
+    }
+  }
+  const im = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), std('#ffffff', { roughness: 0.8 }), books.length);
+  const m4 = new THREE.Matrix4(), col = new THREE.Color();
+  books.forEach((bk, i) => {
+    m4.makeScale(bk.d, bk.h, bk.z1 - bk.z0);
+    m4.setPosition(x0 + 2 + bk.d / 2, bk.y + bk.h / 2, -(bk.z0 + bk.z1) / 2);
+    im.setMatrixAt(i, m4);
+    im.setColorAt(i, col.set(bk.c));
+  });
+  im.castShadow = im.receiveShadow = true;
+  furniture.add(im);
+  furnitureMeshes.push(im);
+}
+
 /* ---------- Sürgülü cam kapı (iki kanat, biri kayar) ---------- */
 function slidingDoor({ name, key, c, a0, a1, oh }) {
   const j = 5, dep = 9;
@@ -884,7 +980,7 @@ railing(L.balcony.x0, L.balcony.x1, -te + 4);
 hingedDoor({ name: 'Çalışma odası', key: 'study', axis: 'x', c: L.top.z0 + ti / 2, t: ti,
   a0: L.studyDoor.x0, a1: L.studyDoor.x1, hinge: 'a0', swing: -1 });
 hingedDoor({ name: 'Banyo', key: 'bath', axis: 'z', c: L.corrL.x1 + ti / 2, t: ti,
-  a0: L.bathDoor.z0, a1: L.bathDoor.z1, hinge: 'a0', swing: 1 });
+  a0: L.bathDoor.z0, a1: L.bathDoor.z1, hinge: 'a1', swing: 1 });   // içe, duşakabin tarafına açılır
 hingedDoor({ name: 'Yatak odası', key: 'bed', axis: 'x', c: L.bedWall.z0 + ti / 2, t: ti,
   a0: L.bedDoor.x0, a1: L.bedDoor.x1, hinge: 'a0', swing: 1 });
 hingedDoor({ name: 'Çelik kapı', key: 'entry', axis: 'z', c: L.corrL.x0 - te / 2, t: te,
@@ -907,8 +1003,9 @@ F(130, 200, 195, 285, 34, 40, mat.wood);
 F(136, 194, 201, 279, 0, 34, mat.woodDark);
 F(262, 306, 165, 335, 8, 50, mat.white);
 F(300, 304, 195, 305, 85, 152, mat.black);
-F(22, 97, 40, 112, 8, 42, mat.fabric2);
-F(22, 36, 40, 112, 42, 80, mat.fabric2);
+// Sol duvarda (cam tarafı) kitaplık; önünde 45° adımlarla dönen tekli koltuk
+bookshelf(0, 35, 8, 128, 200, 5, 29);
+swivelChair({ name: 'Tekli koltuk', x: 92, z: 68, angle: Math.PI / 4 });
 cyl(288, 128, 13, 0, 36, mat.terracotta);
 ball(288, 128, 24, 64, mat.plant);
 // Açık mutfak (arka duvar boyunca) ve ada tezgah (salon ile mutfak arasındaki 50 cm'lik şerit)
@@ -931,7 +1028,7 @@ ball(288, 128, 24, 64, mat.plant);
 // Çalışma odası (konumlar odanın balkon tarafı iç yüzüne göre)
 {
   const z = L.study.z0;
-  F(400, 505, z + 72, z + 282, 0.6, 1.6, mat.rug2);
+  F(400, 505, z + 72, z + 250, 0.6, 1.6, mat.rug2);
   F(516, 576, z + 107, z + 247, 72, 75, mat.woodLight);
   F(518, 574, z + 109, z + 113, 0, 72, mat.woodLight);
   F(518, 574, z + 241, z + 245, 0, 72, mat.woodLight);
@@ -940,10 +1037,110 @@ ball(288, 128, 24, 64, mat.plant);
   cyl(490, z + 177, 2.5, 0, 44, mat.black, 12);
   F(470, 510, z + 157, z + 197, 44, 50, mat.fabric);
   F(466, 471, z + 159, z + 195, 50, 92, mat.fabric);
-  F(430, 570, L.study.z1 - 31, L.study.z1, 0, 200, mat.woodLight);
-  F(316, 400, z + 37, z + 237, 0, 40, mat.white);
-  F(320, 396, z + 41, z + 233, 40, 50, mat.fabric2);
-  F(316, 332, z + 37, z + 237, 50, 82, mat.fabric2);
+}
+// Çalışma odası: kapıdan girince soldaki duvarın köşesinde (duvarlara 2 cm) 150 × 150 × 5 cm platform,
+// üzerinde EFNOTE 5 elektronik davul (4 parça + hi-hat, crash, ride) ve taburesi
+{
+  const P = { x0: L.study.x1 - 2 - 150, x1: L.study.x1 - 2, z0: L.study.z1 - 2 - 150, z1: L.study.z1 - 2 };
+  F(P.x0, P.x1, P.z0, P.z1, 0, 5, mat.riser);
+  const Y = 5;                                   // platform üstü
+  const tx = (P.x0 + P.x1) / 2, tz = P.z0 + 38;  // tabure merkezi; davulcu koridor duvarına (+z) bakar
+  const put = (geo, m, x, y, z, rx = 0) => {
+    const o = new THREE.Mesh(geo, m);
+    o.position.set(x, y, -z);
+    o.rotation.x = rx;
+    o.castShadow = o.receiveShadow = true;
+    furniture.add(o);
+    furnitureMeshes.push(o);
+    return o;
+  };
+  const cylG = (r, h, seg = 28) => new THREE.CylinderGeometry(r, r, h, seg);
+  const pole = (dx, dz, h, r = 1.1) => put(cylG(r, h, 10), mat.chrome, tx + dx, Y + h / 2, tz + dz);
+  // davul: gövde + file deri, davulcuya doğru eğik
+  const drum = (dx, dz, r, top, depth, tilt = 0) => {
+    const g = new THREE.Group();
+    g.position.set(tx + dx, Y + top, -(tz + dz));
+    g.rotation.x = tilt;
+    furniture.add(g);
+    const shell = new THREE.Mesh(cylG(r, depth), mat.drumShell);
+    shell.position.y = -depth / 2;
+    const head = new THREE.Mesh(cylG(r - 0.4, 0.8), mat.drumHead);
+    for (const o of [shell, head]) { o.castShadow = o.receiveShadow = true; g.add(o); furnitureMeshes.push(o); }
+  };
+  const cymbal = (dx, dz, r, y, tilt = 0) => {
+    put(new THREE.CylinderGeometry(r * 0.12, r, 1.2, 40), mat.cymbal, tx + dx, Y + y, tz + dz, tilt);
+    pole(dx, dz, y - 1);
+  };
+  // tabure
+  put(cylG(17, 7), mat.drumHead, tx, Y + 51.5, tz);
+  pole(0, 0, 48, 2);
+  put(new THREE.CylinderGeometry(4, 22, 3, 24), mat.chrome, tx, Y + 1.5, tz);
+  // kick (yatay) ve pedalı
+  put(cylG(15, 22), mat.drumShell, tx, Y + 18, tz + 52, Math.PI / 2);
+  put(cylG(14.6, 0.8), mat.drumHead, tx, Y + 18, tz + 40.6, Math.PI / 2);
+  put(new THREE.BoxGeometry(10, 4, 26), mat.chrome, tx, Y + 2, tz + 27);
+  // trampet, tom, yer tomu
+  drum(-17, 30, 16.5, 62, 9, 0.12);  pole(-17, 30, 52);
+  drum(-1, 60, 13, 80, 12, 0.28);    pole(-1, 66, 72);
+  drum(37, 34, 17, 56, 18, 0.05);    pole(37, 34, 38, 1.4);
+  // hi-hat (sol), crash, ride (sağ)
+  cymbal(-47, 40, 17, 84);
+  put(cylG(16.6, 1), mat.cymbal, tx - 47, Y + 81.5, tz + 40);
+  put(new THREE.BoxGeometry(10, 4, 24), mat.chrome, tx - 47, Y + 2, tz + 27);
+  cymbal(-33, 74, 18, 120, 0.25);
+  cymbal(46, 68, 21, 104, 0.2);
+  // modül ve raf
+  pole(-40, 82, 95, 1.6); pole(40, 82, 95, 1.6);
+  put(new THREE.BoxGeometry(80, 3, 3), mat.chrome, tx, Y + 92, tz + 82);
+  put(new THREE.BoxGeometry(17.2, 10.6, 4.7), mat.drumHead, tx + 20, Y + 100, tz + 82);
+}
+// Roland JUNO-Di (61 tuş, 100,8 × 30 × 10,4 cm) X tipi klavye standında, ortak duvar boyunca
+{
+  const kx = L.study.x0 + 12, kd = 30, kw = 100.8, kh = 10.4;
+  const kz0 = L.study.z0 + 137 - kw / 2, kz1 = kz0 + kw, zc = (kz0 + kz1) / 2;
+  const y0 = 78;                                     // standın taşıyıcı kolları
+  // X stand: önden bakınca X görünen iki çerçeve
+  const legLen = Math.hypot(64, y0 - 2), tilt = Math.atan2(64, y0 - 2);
+  for (const sx of [kx + 6, kx + 24]) for (const sg of [-1, 1]) {
+    const leg = new THREE.Mesh(new THREE.BoxGeometry(2.4, legLen, 2.4), mat.drumHead);
+    leg.position.set(sx, (y0 - 2) / 2, -zc);
+    leg.rotation.x = sg * tilt;
+    leg.castShadow = leg.receiveShadow = true;
+    furniture.add(leg);
+    furnitureMeshes.push(leg);
+  }
+  for (const az of [zc - 24, zc + 24]) F(kx - 2, kx + kd + 2, az - 1.5, az + 1.5, y0 - 3, y0, mat.drumHead);
+  // gövde, arka panel, yan yanaklar
+  const kf = kx + kd, keyL = 15;
+  F(kx, kf, kz0, kz1, y0, y0 + 6, mat.synth);
+  F(kx, kf - keyL, kz0, kz1, y0 + 6, y0 + kh, mat.synth);
+  const keysZ0 = kz0 + 9.8, white = 2.255, keysZ1 = keysZ0 + 36 * white;
+  F(kf - keyL, kf, kz0, keysZ0, y0 + 6, y0 + kh - 1.5, mat.synth);
+  F(kf - keyL, kf, keysZ1, kz1, y0 + 6, y0 + kh - 1.5, mat.synth);
+  F(kx + 3, kx + 11, zc - 9, zc + 9, y0 + kh, y0 + kh + 0.2, mat.lcd);
+  for (let i = 0; i < 5; i++) cyl(kx + 7, kz0 + 14 + i * 5, 1.2, y0 + kh, y0 + kh + 1.6, mat.chrome, 12);
+  // tuşlar: 36 beyaz + 25 siyah (düşük notalar −z ucunda)
+  const keyMesh = (count, m) => {
+    const im = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), m, count);
+    im.castShadow = im.receiveShadow = true;
+    furniture.add(im);
+    furnitureMeshes.push(im);
+    return im;
+  };
+  const wim = keyMesh(36, mat.keyWhite), bim = keyMesh(25, mat.keyBlack);
+  const m4 = new THREE.Matrix4();
+  for (let i = 0; i < 36; i++) {
+    m4.makeScale(keyL - 0.5, 2, white - 0.15);
+    m4.setPosition(kf - keyL / 2, y0 + 7, -(keysZ0 + (i + 0.5) * white));
+    wim.setMatrixAt(i, m4);
+  }
+  let b = 0;
+  for (let i = 0; i < 35; i++) {
+    if (![0, 1, 3, 4, 5].includes(i % 7)) continue;
+    m4.makeScale(9, 1.4, 1.25);
+    m4.setPosition(kf - keyL + 4.5, y0 + 8.6, -(keysZ0 + (i + 1) * white));
+    bim.setMatrixAt(b++, m4);
+  }
 }
 // Balkon
 {
@@ -982,16 +1179,17 @@ ball(288, 128, 24, 64, mat.plant);
   F(wx, x1, z0 + 1, z0 + 59, 86, 171, mat.white);
   porthole(wx + 30, 45, z0 + 59.8);
   porthole(wx + 30, 128, z0 + 59.8);
-  // kapının karşısındaki duvar: klozet
-  const tz = (L.bathDoor.z0 + L.bathDoor.z1) / 2 + 15;
+  // kapının karşısındaki duvar: klozet (kapı kanadının süpürdüğü alanın dışında)
+  const tz = L.bathDoor.z0 + 30;
   F(x1 - 18, x1, tz - 20, tz + 20, 0, 82, mat.white);
   F(x1 - 60, x1 - 18, tz - 16, tz + 16, 0, 40, mat.white);
   F(x1 - 62, x1 - 18, tz - 18, tz + 18, 40, 42, mat.white);
   // sol duvar (yatak odası tarafı): kapıya yakın köşede duşakabin
   F(x0, x0 + 90, z1 - 90, z1, 0.6, 6, mat.white);
   F(x0, x0 + 45, z1 - 91, z1 - 89, 6, 200, mat.glass).castShadow = false;
-  F(x0 + 89, x0 + 91, z1 - 90, z1, 6, 200, mat.glass).castShadow = false;
   cyl(x0 + 3, z1 - 45, 1.2, 100, 205, mat.appliance, 10);
+  // duşakabinin yanındaki boşluk: örülmüş duvar (apartman boşluğu / şaft)
+  wall(x0 + 90, x1, z1 - 90, z1);
 }
 // Yatak odası
 {
@@ -1005,9 +1203,13 @@ ball(288, 128, 24, 64, mat.plant);
   F(bx + 10, bx + 73, b + 13, b + 49, 50, 60, mat.white);          // yastıklar
   F(bx + 82, bx + bw - 10, b + 13, b + 49, 50, 60, mat.white);
   F(bx + 1, bx + bw - 1, b + 57, b + 203, 50, 54, mat.blanket);    // yorgan
-  const w0 = L.bed.z0;                                              // dolap aynı yerde
-  F(L.bed.x0, L.bed.x0 + 60, w0 + 100, w0 + 250, 0, 220, mat.white);
-  F(L.bed.x0 + 59.5, L.bed.x0 + 60.6, w0 + 174, w0 + 176, 0, 220, mat.cap);
+  // Dolap 150 × 60 × 220, üç kapaklı; kapaklar odaya doğru açılır (kapılar gibi tıklanır)
+  const w0 = L.bed.z0, front = L.bed.x0 + 58;
+  F(L.bed.x0, front, w0 + 100, w0 + 250, 0, 220, mat.white);
+  const leaves = [[100, 150, 'a0'], [150, 200, 'a0'], [200, 250, 'a1']];
+  leaves.forEach(([a, b, hinge], i) => cabinetDoor({
+    name: `Dolap kapağı ${i + 1}`, axis: 'z', c: front, a0: w0 + a, a1: w0 + b, hinge, swing: 1, y0: 2, y1: 218,
+  }));
 }
 // Koridor: ayakkabılık (çelik kapının karşısı)
 F(L.corrL.x1 - 28, L.corrL.x1, L.entry.z0 + 12, L.entry.z1, 0, 100, mat.white);
@@ -1073,7 +1275,7 @@ const ROOMS = [
   { name: 'Koridor', dims: `${corrSW}×${M.corridor.shortD} + ${corrLW}×${corrLen}`, m2: area(corrSW, M.corridor.shortD) + area(corrLW, corrLen), st: 'est', space: 'koridor',
     box: [L.corrS.x0, L.corrL.x1, L.corrS.z0, L.corrL.z1], label: [(L.corrS.x0 + L.corrS.x1) / 2, (L.corrS.z0 + L.corrS.z1) / 2], sub: `L · tavan ${M.corridorCeiling}` },
   { name: 'Banyo', dims: `${bathW} × ${bathD}`, m2: area(bathW, bathD), st: 'est', space: 'banyo',
-    box: [L.bath.x0, L.bath.x1, L.bath.z0, L.bath.z1], label: [(L.bath.x0 + L.bath.x1) / 2, L.bath.z1 - 60] },
+    box: [L.bath.x0, L.bath.x1, L.bath.z0, L.bath.z1], label: [(L.bath.x0 + L.bath.x1) / 2, (L.bath.z0 + L.bath.z1) / 2] },
   { name: 'Yatak odası', dims: `${M.bedroom.w} × ${M.bedroom.d}`, m2: area(M.bedroom.w, M.bedroom.d), st: 'ok', space: 'yatak',
     box: [L.bed.x0, L.bed.x1, L.bed.z0, L.bed.z1], label: [(L.bed.x0 + L.bed.x1) / 2, L.bed.z0 + 117] },
 ];
@@ -1337,7 +1539,8 @@ function pick(clientX, clientY) {
   const rect = canvas.getBoundingClientRect();
   ndc.set(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
   raycaster.setFromCamera(ndc, camera);
-  const all = furniture.visible ? blockers.concat(furnitureMeshes, doorParts) : blockers.concat(doorParts);
+  const doorT = furniture.visible ? doorParts : doorParts.filter(m => !m.userData.door.furniture);
+  const all = furniture.visible ? blockers.concat(furnitureMeshes, doorT) : blockers.concat(doorT);
   const targets = ghosted.length ? all.filter(m => !m.userData.orig) : all;
   return raycaster.intersectObjects(targets, false)[0] || null;
 }
@@ -1345,11 +1548,13 @@ function pickDoor(clientX, clientY) {
   const hit = pick(clientX, clientY);
   return hit ? (hit.object.userData.door || null) : null;
 }
-// Tıklama: kapı → aç/kapat · oda → odaklan · odaktayken boş alan ya da başka oda → tüm daire
+// Tıklama: kapı/dolap kapağı → aç/kapat · koltuk → 45° döndür · oda → odaklan · odaktayken boş alan ya da başka oda → tüm daire
 function handleClick(clientX, clientY) {
   const hit = pick(clientX, clientY);
   const door = hit && hit.object.userData.door;
   if (door) { toggleDoor(door); return; }
+  const spin = hit && hit.object.userData.spin;
+  if (spin) { spin.target += Math.PI / 4; return; }
   const sp = hit ? spaceAt(hit.point.x, -hit.point.z) : null;
   if (focused) {
     if (!hit || (sp && sp !== focused)) unfocus();
@@ -1386,7 +1591,7 @@ canvas.addEventListener('pointermove', e => {
   if (!p) {
     if (e.pointerType === 'mouse') {
       const hit = pick(e.clientX, e.clientY);
-      const door = hit && hit.object.userData.door || null;
+      const door = hit && (hit.object.userData.door || hit.object.userData.spin) || null;
       setHover(door);
       if (!door) canvas.classList.toggle('over-door', !focused && !!hit && !!spaceAt(hit.point.x, -hit.point.z));
     }
@@ -1495,7 +1700,7 @@ const rowMap = new Map();
     `<b>Koridor uzun kolu:</b> <span class="num">${corrLW} × ${corrLen}</span>, kısa kolun üstünden yatak odası duvarına kadar. Yatak odası kapısının sol kenarı koridorun sol duvarıyla hizalı.`,
     `<b>Banyo (kalan alan):</b> genişlik <span class="num">${M.bedroom.w} − ${corrLW} − ${ti} = ${bathW}</span>, derinlik <span class="num">${M.corridor.shortD} + ${corrLen} = ${bathD}</span> cm.`,
     `<b>Kapı sırası:</b> koridorda yatak odasından salona doğru önce çelik kapı, sonra karşı duvarda banyo kapısı gelir; kapılar karşılıklı değil.`,
-    `<b>Banyo yerleşimi:</b> kapıdan girince sağ duvarda lavabo ile üst üste çamaşır ve kurutma makinesi, karşı duvarda klozet, sol duvarda kapı tarafındaki köşede duşakabin.`,
+    `<b>Banyo yerleşimi:</b> kapıdan girince sağ duvarda lavabo ile üst üste çamaşır ve kurutma makinesi, karşı duvarda klozet, sol duvarda kapı tarafındaki köşede duşakabin; yanında örülmüş duvar (şaft). Kapı içe, duşakabin tarafına açılır.`,
     `<b>Kapılar:</b> boşluk <span class="num">${M.doorGap}</span>, yükseklik <span class="num">${M.doorHeight}</span>; kasa payı sonrası kanat ≈ <span class="num">${M.doorGap - 10}</span>, açıkken geçiş ≈ <span class="num">85</span>.`,
     `<b>Yükseklik:</b> odalar <span class="num">${H}</span>, koridor asma tavan <span class="num">${M.corridorCeiling}</span> cm.`,
   ];
@@ -1553,6 +1758,12 @@ function frame() {
     if (d.kind === 'hinge') d.pivot.rotation.y = d.thetaC + (d.thetaO - d.thetaC) * e;
     else d.group.position.copy(d.along).multiplyScalar(d.travel * e);
   }
+  for (const sp of spinners) {
+    if (sp.angle === sp.target) continue;
+    sp.angle += (sp.target - sp.angle) * (1 - Math.exp(-dt * (reduceMotion ? 40 : 8)));
+    if (Math.abs(sp.target - sp.angle) < 0.001) sp.angle = sp.target;
+    sp.pivot.rotation.y = sp.angle;
+  }
   if (fadeCur !== fadeTarget) {
     let f = fadeCur + (fadeTarget - fadeCur) * (1 - Math.exp(-dt * (reduceMotion ? 40 : 7)));
     if (Math.abs(f - fadeTarget) < 0.01) f = fadeTarget;
@@ -1579,7 +1790,7 @@ async function start() {
   window.addEventListener('resize', resize);
   clock.getDelta();
   requestAnimationFrame(frame);
-  window.__house = { doors, L, M, goal, view, camera, pickDoor, focusSpace, unfocus, SPACE, get focused() { return focused; }, ghosted };
+  window.__house = { doors, L, M, goal, view, camera, pickDoor, focusSpace, unfocus, SPACE, get focused() { return focused; }, ghosted, spinners };
 }
 start();
 </script>

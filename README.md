@@ -16,7 +16,8 @@ Yerel sunucu isterseniz: `python3 -m http.server` → `http://localhost:8000`.
 | Yakınlaştırma | tekerlek | iki parmak | + − |
 | Odaya odaklan | odaya tıklama | dokunma | — |
 | Tüm daireye dön | boş alana ya da başka odaya tıklama | dokunma | Esc |
-| Kapı aç / kapat | kapıya, kasasına ya da üstündeki lentoya tıklama | dokunma | — |
+| Kapı / dolap kapağı aç-kapat | kapıya, kasasına ya da üstündeki lentoya tıklama | dokunma | — |
+| Tekli koltuğu 45° döndür | koltuğa tıklama | dokunma | — |
 
 Paneldeki **Kapıları aç**, **Üstten bak**, **Sıfırla** düğmeleri ve **Etiketler** / **Mobilya** anahtarları da kullanılabilir.
 Bir odaya tıklandığında kamera pivotunu o odanın merkezine alır, odayı kadraja sığdırır ve diğer odalar soluklaşır;
@@ -72,11 +73,22 @@ Tüm ölçüler cm ve iç yüzden iç yüze. Sahnede 1 birim = 1 cm.
   (sağ duvar) gelir. Kapılar karşılıklı değil.
 - **Banyo yerleşimi** (kapıdan girerken): sağdaki duvarda (çalışma odası tarafı) lavabo ve köşede üst üste
   çamaşır + kurutma makinesi; karşıdaki duvarda klozet, duvarın geri kalanı boş; soldaki duvarda (yatak odası
-  tarafı) kapıya yakın köşede duşakabin.
+  tarafı) kapıya yakın köşede 90 × 90 duşakabin ve yanında örülmüş duvar (apartman boşluğu / şaft, 52 × 90).
+  Banyo kapısı içe, duşakabin tarafına açılır; klozet kanadın süpürdüğü alanın dışında.
 - **Yatak odası:** 280 × 256 cm (teyit edildi).
 - **Kapılar:** boşluk 100 cm, yükseklik 215 cm. Kasa payı düşülünce kanat ≈ 90 cm, açıkken net geçiş ≈ 85 cm.
   Yatak odası ve çalışma odası kapıları açılınca yan duvara (Z eksenine) paralel durur.
 - **Yükseklik:** odalar 260 cm, koridor asma tavanı 235 cm.
+
+## Mobilya ve ekipman
+
+- **Salon:** cam tarafındaki sol duvarda 120 × 35 × 200 kitaplık; önünde tıklandıkça 45° dönen tekli koltuk
+  (salona, cama ya da kitaplığa çevrilebilir).
+- **Çalışma odası:** kapıdan girince soldaki duvarın köşesinde, iki duvara 2 cm mesafeyle 150 × 150 × 5 cm
+  yükseltici platform; üzerinde EFNOTE 5 elektronik davul (kick, trampet, tom, yer tomu, hi-hat, crash, ride,
+  modül) ve taburesi. Ortak duvar boyunca X standında Roland JUNO-Di (61 tuş, 100,8 × 30 × 10,4 cm).
+- **Yatak odası:** sağ duvara yaslı 155 cm karyola; sol duvarda 150 × 60 × 220 üç kapaklı dolap, kapaklar
+  odaya doğru açılır.
 
 ## Ölçüleri değiştirme
 
