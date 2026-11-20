@@ -995,16 +995,19 @@ ball(288, 128, 24, 64, mat.plant);
 }
 // Yatak odası
 {
-  const b = L.bed.z0;
-  F(395, 515, b + 6, b + 205, 0, 30, mat.woodLight);
-  F(398, 512, b + 9, b + 202, 30, 50, mat.bedding);
-  F(395, 515, b, b + 6, 0, 100, mat.woodLight);
-  F(405, 505, b + 13, b + 49, 50, 60, mat.white);
-  F(396, 514, b + 57, b + 203, 50, 54, mat.blanket);
-  F(522, 568, b + 7, b + 47, 0, 50, mat.woodLight);
-  cyl(545, b + 27, 7, 50, 76, mat.white);
-  F(L.bed.x0, L.bed.x0 + 60, b + 100, b + 250, 0, 220, mat.white);
-  F(L.bed.x0 + 59.5, L.bed.x0 + 60.6, b + 174, b + 176, 0, 220, mat.cap);
+  // Yatak: karyola dahil 155 cm. Sol kenar kapının açılma alanının dışında (x 395);
+  // başlık duvardaki 5 cm'lik çıkıntının önüne gelir.
+  const b = L.bed.z0 + M.bedroom.nicheDepth;
+  const bx = 395, bw = 155;
+  F(bx, bx + bw, b + 6, b + 205, 0, 30, mat.woodLight);            // karyola
+  F(bx + 2.5, bx + bw - 2.5, b + 9, b + 202, 30, 50, mat.bedding); // şilte 150 × 193
+  F(bx, bx + bw, b, b + 6, 0, 100, mat.woodLight);                 // başlık
+  F(bx + 10, bx + 73, b + 13, b + 49, 50, 60, mat.white);          // yastıklar
+  F(bx + 82, bx + bw - 10, b + 13, b + 49, 50, 60, mat.white);
+  F(bx + 1, bx + bw - 1, b + 57, b + 203, 50, 54, mat.blanket);    // yorgan
+  const w0 = L.bed.z0;                                              // dolap aynı yerde
+  F(L.bed.x0, L.bed.x0 + 60, w0 + 100, w0 + 250, 0, 220, mat.white);
+  F(L.bed.x0 + 59.5, L.bed.x0 + 60.6, w0 + 174, w0 + 176, 0, 220, mat.cap);
 }
 // Koridor: ayakkabılık (çelik kapının karşısı)
 F(L.corrL.x1 - 28, L.corrL.x1, L.entry.z0 + 12, L.entry.z1, 0, 100, mat.white);
