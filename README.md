@@ -31,7 +31,7 @@ Oda tablosunda bir oda adına tıklamak kamerayı o odaya odaklar; **Sıfırla**
                          │                         │
                          ├ kapı    ─┬──────────────┤
             çelik kapı   ┃ KORİDOR  │    BANYO     │
-             bina holü   ┃ 128×173  │  142 × 270   │
+             bina holü   ┃ 128×193  │  142 × 290   │
                 ┌────────┘          ┊              │
                 │ koridor 228×97    ┊              │
 ┌───────────────┴─ kapısız─┬ kapı   ┴──────────────┤
@@ -60,13 +60,13 @@ Tüm ölçüler cm ve iç yüzden iç yüze. Sahnede 1 birim = 1 cm.
 - **Çalışma odası kapısı:** 260 − 162 = 98 cm boşluk, salon tarafındaki köşede.
 - **Koridor kısa kolu:** **228 × 97 cm**. Z = 97 (ölçülen 87 + 10). X, salon kapısının sol kenarından
   uzun kolun sağ duvarına kadar: duvarlarla ≈ 248 cm.
-- **Koridor uzun kolu:** **128 × 173 cm**, kısa kolun üstünden yatak odası duvarına kadar. Sağ dış duvar düz kabul
+- **Koridor uzun kolu:** **128 × 193 cm**, kısa kolun üstünden yatak odası duvarına kadar. Sağ dış duvar düz kabul
   edildiğinde yatak odası kapısının sol kenarı koridorun sol duvarıyla aynı hizaya gelir.
-- **Banyo (kalan alan):** genişlik 280 − 128 − 10 = **142 cm**, derinlik 97 + 173 = **270 cm**.
+- **Banyo (kalan alan):** genişlik 280 − 128 − 10 = **142 cm**, derinlik 97 + 193 = **290 cm**.
 - **Kapı sırası:** koridorda yatak odasından salona doğru önce çelik kapı (sol duvar), sonra banyo kapısı
   (sağ duvar) gelir. Kapılar karşılıklı değil.
-- **Banyo yerleşimi:** sağ (komşu) duvar boyunca çalışma odası tarafından başlayarak klozet, lavabo,
-  lavabonun yanındaki boşlukta çamaşır makinesi ve aynı hizada, yatak odası köşesinde duşakabin.
+- **Banyo yerleşimi:** sağ (komşu) duvar boyunca çalışma odası tarafında klozet; yatak odası köşesinde
+  duşakabin, aynı hizada çamaşır makinesi ve onun yanında lavabo.
 - **Yatak odası:** 280 × 256 cm (teyit edildi).
 - **Kapılar:** boşluk 100 cm, yükseklik 215 cm. Kasa payı düşülünce kanat ≈ 90 cm, açıkken net geçiş ≈ 85 cm.
   Yatak odası ve çalışma odası kapıları açılınca yan duvara (Z eksenine) paralel durur.
@@ -82,7 +82,7 @@ const M = {
   doorGap: 100, doorHeight: 215,
   salon:    { w: 306, dTotal: 553, dLiving: 393 },
   study:    { w: 260, d: 410, topWall: 162 },
-  corridor: { shortD: 97, longW: 128, longD: 173 },
+  corridor: { shortD: 97, longW: 128, longD: 193 },
   bedroom:  { w: 280, d: 256, straight: 120, niche: 60, nicheDepth: 5 },
 };
 ```

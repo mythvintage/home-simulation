@@ -365,9 +365,9 @@ const M = {
   doorHeight: 215,       // kapı boşluğu yüksekliği
   salon:    { w: 306, dTotal: 553, dLiving: 393 },   // salon + açık mutfak
   study:    { w: 260, d: 410, topWall: 162 },        // çalışma odası
-  corridor: { shortD: 97, longW: 128, longD: 173 }, // L: kısa kol Z · uzun kol X ve Z (kısa kolun üstünden)
+  corridor: { shortD: 97, longW: 128, longD: 193 }, // L: kısa kol Z · uzun kol X ve Z (kısa kolun üstünden)
   bedroom:  { w: 280, d: 256, straight: 120, niche: 60, nicheDepth: 5 }, // küçük oda
-  // Banyo ölçülmedi: kalan alandan hesaplanır (genişlik 280 − 128 − 10, derinlik 97 + 173)
+  // Banyo ölçülmedi: kalan alandan hesaplanır (genişlik 280 − 128 − 10, derinlik 97 + 193)
 };
 
 /* =====================================================================
@@ -923,16 +923,18 @@ ball(552, 108, 24, 64, mat.plant);
   F(x1 - 18, x1, z0 + 15, z0 + 55, 0, 82, mat.white);
   F(x1 - 60, x1 - 18, z0 + 19, z0 + 51, 0, 40, mat.white);
   F(x1 - 62, x1 - 18, z0 + 17, z0 + 53, 40, 42, mat.white);
+  // duşakabin köşesinden geriye doğru: çamaşır makinesi, yanında lavabo
+  const wz = z1 - 90 - 60, sz = wz - 50;
   // lavabo dolabı + ayna
-  F(x1 - 45, x1, z0 + 70, z0 + 120, 0, 82, mat.woodLight);
-  F(x1 - 47, x1, z0 + 69, z0 + 121, 82, 86, mat.white);
-  F(x1 - 38, x1 - 8, z0 + 80, z0 + 110, 85.5, 86.3, mat.appliance);
-  F(x1 - 2, x1, z0 + 75, z0 + 115, 110, 175, mat.mirror);
+  F(x1 - 45, x1, sz, sz + 50, 0, 82, mat.woodLight);
+  F(x1 - 47, x1, sz - 1, sz + 50, 82, 86, mat.white);
+  F(x1 - 38, x1 - 8, sz + 10, sz + 40, 85.5, 86.3, mat.appliance);
+  F(x1 - 2, x1, sz + 5, sz + 45, 110, 175, mat.mirror);
   // çamaşır makinesi: lavabonun yanındaki boşlukta
-  F(x1 - 60, x1, z0 + 121, z0 + 179, 0, 85, mat.white);
+  F(x1 - 60, x1, wz + 1, wz + 59, 0, 85, mat.white);
   const porthole = new THREE.Mesh(new THREE.CylinderGeometry(17, 17, 1.5, 28), mat.black);
   porthole.rotation.z = Math.PI / 2;
-  porthole.position.set(x1 - 60.5, 45, -(z0 + 150));
+  porthole.position.set(x1 - 60.5, 45, -(wz + 30));
   furniture.add(porthole);
   furnitureMeshes.push(porthole);
   // duşakabin: çamaşır makinesiyle aynı hizada, yatak odası duvarı köşesinde
