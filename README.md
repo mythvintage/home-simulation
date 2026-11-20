@@ -16,7 +16,7 @@ Yerel sunucu isterseniz: `python3 -m http.server` → `http://localhost:8000`.
 | Yakınlaştırma | tekerlek | iki parmak | + − |
 | Odaya odaklan | odaya tıklama | dokunma | — |
 | Tüm daireye dön | boş alana ya da başka odaya tıklama | dokunma | Esc |
-| Kapı / dolap kapağı aç-kapat | kapıya, kasasına ya da üstündeki lentoya tıklama | dokunma | — |
+| Kapı / dolap / portmanto kapağı aç-kapat | kapıya, kasasına ya da üstündeki lentoya tıklama | dokunma | — |
 | Tekli koltuğu 45° döndür | koltuğa tıklama | dokunma | — |
 
 Paneldeki **Kapıları aç**, **Üstten bak**, **Sıfırla** düğmeleri ve **Etiketler** / **Mobilya** anahtarları da kullanılabilir.
@@ -36,9 +36,9 @@ ve tüm daireyi gören uzaklığa geri getirir. Oda tablosundaki adlar da aynı 
                          │                         │
                          ├ kapı    ─┬──────────────┤
             çelik kapı   ┃ KORİDOR  │    BANYO     │
-             bina holü   ┃ 128×223  │  142 × 320   │
+             bina holü   ┃ 128×223  │  142 × 340   │
                 ┌────────┘          ┊              │
-                │ koridor 228×97    ┊              │
+                │ koridor 228×117   ┊              │
 ┌───────────────┴─ kapısız─┬ kapı   ┴──────────────┤
 │  AÇIK MUTFAK             │                       │
 │  306 × 160               │     ÇALIŞMA ODASI     │
@@ -64,11 +64,11 @@ Tüm ölçüler cm ve iç yüzden iç yüze. Sahnede 1 birim = 1 cm.
   yeri sayılmamıştı; 50 cm'lik pay tahmini (50–60).
 - **Balkon:** 603 − 410 = **193 cm** derinlik, çalışma odasıyla aynı 260 cm genişlik.
 - **Çalışma odası kapısı:** 260 − 162 = 98 cm boşluk, salon tarafındaki köşede.
-- **Koridor kısa kolu:** **228 × 97 cm**. Z = 97 (ölçülen 87 + 10). X, salon kapısının sol kenarından
+- **Koridor kısa kolu:** **228 × 117 cm**. Z = 117 (ölçülen 87 + 30). X, salon kapısının sol kenarından
   uzun kolun sağ duvarına kadar: duvarlarla ≈ 248 cm.
 - **Koridor uzun kolu:** **128 × 223 cm**, kısa kolun üstünden yatak odası duvarına kadar. Sağ dış duvar düz kabul
   edildiğinde yatak odası kapısının sol kenarı koridorun sol duvarıyla aynı hizaya gelir.
-- **Banyo (kalan alan):** genişlik 280 − 128 − 10 = **142 cm**, derinlik 97 + 223 = **320 cm**.
+- **Banyo (kalan alan):** genişlik 280 − 128 − 10 = **142 cm**, derinlik 117 + 223 = **340 cm**.
 - **Kapı sırası:** koridorda yatak odasından salona doğru önce çelik kapı (sol duvar), sonra banyo kapısı
   (sağ duvar) gelir. Kapılar karşılıklı değil.
 - **Banyo yerleşimi** (kapıdan girerken): sağdaki duvarda (çalışma odası tarafı) lavabo ve köşede üst üste
@@ -82,11 +82,17 @@ Tüm ölçüler cm ve iç yüzden iç yüze. Sahnede 1 birim = 1 cm.
 
 ## Mobilya ve ekipman
 
-- **Salon:** cam tarafındaki sol duvarda 120 × 35 × 200 kitaplık; önünde tıklandıkça 45° dönen tekli koltuk
-  (salona, cama ya da kitaplığa çevrilebilir).
+- **Salon:** cam tarafındaki sol duvarda 120 × 35 × 200 kitaplık; kitaplığın 40 cm daha önünde tıklandıkça
+  45° dönen tekli koltuk (salona, cama ya da kitaplığa çevrilebilir).
+- **Açık mutfak:** ada tezgah, sol duvar tezgahı ve arka duvar tezgahı birleşik; sağa (salon kapısına) açılan
+  U. Sol kolda evye ve üst dolaplar, arka kolda ocak, üst dolaplar ve buzdolabı.
+- **Koridor:** kısa kolda salon kapısının tam karşısında 96 × 38 × 230 cm boydan portmanto (iki kapaklı,
+  içinde şapkalık rafı ve askı borusu); çelik kapının yanındaki duvarda 64 × 176 cm boy aynası; çelik kapının
+  karşısında ayakkabılık.
 - **Çalışma odası:** kapıdan girince soldaki duvarın köşesinde, iki duvara 2 cm mesafeyle 150 × 150 × 5 cm
   yükseltici platform; üzerinde EFNOTE 5 elektronik davul (kick, trampet, tom, yer tomu, hi-hat, crash, ride,
-  modül) ve taburesi. Ortak duvar boyunca X standında Roland JUNO-Di (61 tuş, 100,8 × 30 × 10,4 cm).
+  modül) ve taburesi. Çalışma masasının sağında, masaya dik, tuşları sandalyeye bakan X standında Roland
+  JUNO-Di (61 tuş, 100,8 × 30 × 10,4 cm). Ortak duvar boyunca sıralı gitar standında 4 gitar (1 akustik, 3 elektro).
 - **Yatak odası:** sağ duvara yaslı 155 cm karyola; sol duvarda 150 × 60 × 220 üç kapaklı dolap, kapaklar
   odaya doğru açılır.
 
@@ -100,7 +106,7 @@ const M = {
   doorGap: 100, doorHeight: 215,
   salon:    { w: 306, dLiving: 393, island: 50, dKitchen: 160 },
   study:    { w: 260, d: 410, topWall: 162 },
-  corridor: { shortD: 97, longW: 128, longD: 223 },
+  corridor: { shortD: 117, longW: 128, longD: 223 },
   bedroom:  { w: 280, d: 256, straight: 120, niche: 60, nicheDepth: 5 },
 };
 ```

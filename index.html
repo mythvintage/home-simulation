@@ -367,9 +367,9 @@ const M = {
   doorHeight: 215,       // kapı boşluğu yüksekliği
   salon:    { w: 306, dLiving: 393, island: 50, dKitchen: 160 }, // salon · ada tezgah · açık mutfak (Z)
   study:    { w: 260, d: 410, topWall: 162 },        // çalışma odası
-  corridor: { shortD: 97, longW: 128, longD: 223 }, // L: kısa kol Z · uzun kol X ve Z (kısa kolun üstünden)
+  corridor: { shortD: 117, longW: 128, longD: 223 }, // L: kısa kol Z · uzun kol X ve Z (kısa kolun üstünden)
   bedroom:  { w: 280, d: 256, straight: 120, niche: 60, nicheDepth: 5 }, // küçük oda
-  // Banyo ölçülmedi: kalan alandan hesaplanır (genişlik 280 − 128 − 10, derinlik 97 + 223)
+  // Banyo ölçülmedi: kalan alandan hesaplanır (genişlik 280 − 128 − 10, derinlik 117 + 223)
 };
 // Salon + ada tezgah + açık mutfak toplam Z (393 + 50 + 160)
 const SALON_D = M.salon.dLiving + M.salon.island + M.salon.dKitchen;
@@ -1005,21 +1005,27 @@ F(262, 306, 165, 335, 8, 50, mat.white);
 F(300, 304, 195, 305, 85, 152, mat.black);
 // Sol duvarda (cam tarafı) kitaplık; önünde 45° adımlarla dönen tekli koltuk
 bookshelf(0, 35, 8, 128, 200, 5, 29);
-swivelChair({ name: 'Tekli koltuk', x: 92, z: 68, angle: Math.PI / 4 });
+swivelChair({ name: 'Tekli koltuk', x: 132, z: 68, angle: Math.PI / 4 });
 cyl(288, 128, 13, 0, 36, mat.terracotta);
 ball(288, 128, 24, 64, mat.plant);
-// Açık mutfak (arka duvar boyunca) ve ada tezgah (salon ile mutfak arasındaki 50 cm'lik şerit)
+// Açık mutfak: ada tezgah, sol duvar tezgahı ve arka duvar tezgahı birleşik — sağa (+x) açılan U
 {
-  const T = L.salon.z1, iz0 = L.kitchenZ, iz1 = L.kitchenZ1;
-  F(0, 135, T - 60, T, 0, 86, mat.white);
-  F(0, 137, T - 63, T, 86, 90, mat.stone);
-  F(72, 122, T - 50, T - 10, 90, 90.8, mat.black);
-  F(15, 60, T - 48, T - 12, 89.6, 90.7, mat.appliance);
+  const T = L.salon.z1, iz0 = L.kitchenZ, iz1 = L.kitchenZ1, D = 60;
+  // arka duvar (U'nun üst kolu): tezgah, ocak, üst dolaplar, buzdolabı
+  F(0, 135, T - D, T, 0, 86, mat.white);
+  F(0, 137, T - D - 3, T, 86, 90, mat.stone);
+  F(75, 125, T - 50, T - 10, 90, 90.8, mat.black);
   F(0, 135, T - 33, T, 150, 222, mat.white);
   F(137, 200, T - 65, T, 0, 202, mat.appliance);
-  F(30, 180, iz0 + 4, iz1 - 4, 0, 88, mat.woodDark);
-  F(22, 188, iz0 - 12, iz1, 88, 92, mat.stone);
-  for (const x of [70, 140]) {
+  // sol duvar (U'nun gövdesi): tezgah, evye, üst dolaplar
+  F(0, D, iz0 + 4, T - D, 0, 86, mat.white);
+  F(0, D + 3, iz1, T - D - 3, 86, 90, mat.stone);
+  F(10, 48, iz1 + 25, iz1 + 70, 89.6, 90.7, mat.appliance);
+  F(0, 33, iz1 + 15, T - 33, 150, 222, mat.white);
+  // ada tezgah (U'nun alt kolu), sol tezgaha birleşik; salon tarafında tabure çıkıntısı
+  F(D, 180, iz0 + 4, iz1 - 4, 0, 86, mat.woodDark);
+  F(0, 188, iz0 - 12, iz1, 86, 90, mat.stone);
+  for (const x of [80, 145]) {
     cyl(x, iz0 - 22, 2.5, 2, 62, mat.black, 12);
     cyl(x, iz0 - 22, 16, 62, 66, mat.wood);
     cyl(x, iz0 - 22, 13, 0, 2, mat.black);
@@ -1094,53 +1100,109 @@ ball(288, 128, 24, 64, mat.plant);
   put(new THREE.BoxGeometry(80, 3, 3), mat.chrome, tx, Y + 92, tz + 82);
   put(new THREE.BoxGeometry(17.2, 10.6, 4.7), mat.drumHead, tx + 20, Y + 100, tz + 82);
 }
-// Roland JUNO-Di (61 tuş, 100,8 × 30 × 10,4 cm) X tipi klavye standında, ortak duvar boyunca
-{
-  const kx = L.study.x0 + 12, kd = 30, kw = 100.8, kh = 10.4;
-  const kz0 = L.study.z0 + 137 - kw / 2, kz1 = kz0 + kw, zc = (kz0 + kz1) / 2;
-  const y0 = 78;                                     // standın taşıyıcı kolları
-  // X stand: önden bakınca X görünen iki çerçeve
+// Roland JUNO-Di (61 tuş, 100,8 × 30 × 10,4 cm) X tipi standında.
+// Yerel çerçeve: tuşlar yerel +x'e bakar, düşük notalar yerel +z ucunda; angle ile döndürülür.
+function junoDi({ x, z, angle }) {
+  const g = new THREE.Group();
+  g.position.set(x, 0, -z);
+  g.rotation.y = angle;
+  furniture.add(g);
+  const kw = 100.8, kd = 30, kh = 10.4, keyL = 15, y0 = 78, hw = kw / 2, hd = kd / 2;
+  // X stand: önden bakınca X görünen iki çerçeve ve taşıyıcı kollar
   const legLen = Math.hypot(64, y0 - 2), tilt = Math.atan2(64, y0 - 2);
-  for (const sx of [kx + 6, kx + 24]) for (const sg of [-1, 1]) {
+  for (const sx of [-9, 9]) for (const sg of [-1, 1]) {
     const leg = new THREE.Mesh(new THREE.BoxGeometry(2.4, legLen, 2.4), mat.drumHead);
-    leg.position.set(sx, (y0 - 2) / 2, -zc);
+    leg.position.set(sx, (y0 - 2) / 2, 0);
     leg.rotation.x = sg * tilt;
-    leg.castShadow = leg.receiveShadow = true;
-    furniture.add(leg);
-    furnitureMeshes.push(leg);
+    g.add(leg);
   }
-  for (const az of [zc - 24, zc + 24]) F(kx - 2, kx + kd + 2, az - 1.5, az + 1.5, y0 - 3, y0, mat.drumHead);
-  // gövde, arka panel, yan yanaklar
-  const kf = kx + kd, keyL = 15;
-  F(kx, kf, kz0, kz1, y0, y0 + 6, mat.synth);
-  F(kx, kf - keyL, kz0, kz1, y0 + 6, y0 + kh, mat.synth);
-  const keysZ0 = kz0 + 9.8, white = 2.255, keysZ1 = keysZ0 + 36 * white;
-  F(kf - keyL, kf, kz0, keysZ0, y0 + 6, y0 + kh - 1.5, mat.synth);
-  F(kf - keyL, kf, keysZ1, kz1, y0 + 6, y0 + kh - 1.5, mat.synth);
-  F(kx + 3, kx + 11, zc - 9, zc + 9, y0 + kh, y0 + kh + 0.2, mat.lcd);
-  for (let i = 0; i < 5; i++) cyl(kx + 7, kz0 + 14 + i * 5, 1.2, y0 + kh, y0 + kh + 1.6, mat.chrome, 12);
-  // tuşlar: 36 beyaz + 25 siyah (düşük notalar −z ucunda)
-  const keyMesh = (count, m) => {
-    const im = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), m, count);
-    im.castShadow = im.receiveShadow = true;
-    furniture.add(im);
-    furnitureMeshes.push(im);
-    return im;
-  };
-  const wim = keyMesh(36, mat.keyWhite), bim = keyMesh(25, mat.keyBlack);
+  for (const az of [-24, 24]) lbox(g, -hd - 2, hd + 2, y0 - 3, y0, az - 1.5, az + 1.5, mat.drumHead);
+  // gövde, arka panel, yan yanaklar, ekran ve düğmeler
+  const white = 2.255, kz = hw - 9.8;
+  lbox(g, -hd, hd, y0, y0 + 6, -hw, hw, mat.synth);
+  lbox(g, -hd, hd - keyL, y0 + 6, y0 + kh, -hw, hw, mat.synth);
+  lbox(g, hd - keyL, hd, y0 + 6, y0 + kh - 1.5, kz, hw, mat.synth);
+  lbox(g, hd - keyL, hd, y0 + 6, y0 + kh - 1.5, -hw, kz - 36 * white, mat.synth);
+  lbox(g, -hd + 3, -hd + 11, y0 + kh, y0 + kh + 0.2, -9, 9, mat.lcd);
+  for (let i = 0; i < 5; i++) {
+    const k = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 1.6, 12), mat.chrome);
+    k.position.set(-hd + 7, y0 + kh + 0.8, hw - 14 - i * 5);
+    g.add(k);
+  }
+  // tuşlar: 36 beyaz + 25 siyah
+  const keys = (count, m) => { const im = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), m, count); g.add(im); return im; };
+  const wim = keys(36, mat.keyWhite), bim = keys(25, mat.keyBlack);
   const m4 = new THREE.Matrix4();
   for (let i = 0; i < 36; i++) {
     m4.makeScale(keyL - 0.5, 2, white - 0.15);
-    m4.setPosition(kf - keyL / 2, y0 + 7, -(keysZ0 + (i + 0.5) * white));
+    m4.setPosition(hd - keyL / 2, y0 + 7, kz - (i + 0.5) * white);
     wim.setMatrixAt(i, m4);
   }
   let b = 0;
   for (let i = 0; i < 35; i++) {
     if (![0, 1, 3, 4, 5].includes(i % 7)) continue;
     m4.makeScale(9, 1.4, 1.25);
-    m4.setPosition(kf - keyL + 4.5, y0 + 8.6, -(keysZ0 + (i + 1) * white));
+    m4.setPosition(hd - keyL + 4.5, y0 + 8.6, kz - (i + 1) * white);
     bim.setMatrixAt(b++, m4);
   }
+  g.traverse(o => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; furnitureMeshes.push(o); } });
+}
+// Çalışma masasının sağında (oturan kişiye göre), masaya dik; tuşlar sandalyeye (+z) bakar
+junoDi({ x: L.study.x1 - 2 - 50.4, z: L.study.z0 + 107 - 3 - 15, angle: Math.PI / 2 });
+
+// Gitar: yerel y boyu (alt uç y≈0), yerel +z ön yüz; ön yüz odaya bakar, üst uç duvara yaslanır
+function guitar({ x, z, color, acoustic = false, lean = 0.24 }) {
+  const outer = new THREE.Group();
+  outer.position.set(x, 9, -z);
+  outer.rotation.y = Math.PI / 2;
+  const g = new THREE.Group();
+  g.rotation.x = -lean;
+  outer.add(g);
+  furniture.add(outer);
+  const bm = std(color, { roughness: 0.3, metalness: 0.1 });
+  const dark = std('#3b2a20', { roughness: 0.6 });
+  const th = acoustic ? 10 : 4.5;
+  const [r1, c1, r2, c2] = acoustic ? [19.5, 20, 14.5, 43] : [16.5, 17, 13, 36];
+  for (const [r, cy] of [[r1, c1], [r2, c2]]) {
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, th, 40), bm);
+    m.rotation.x = Math.PI / 2;
+    m.position.y = cy;
+    g.add(m);
+  }
+  const n0 = c2 + r2 - 4, n1 = n0 + (acoustic ? 40 : 43);
+  lbox(g, -2.4, 2.4, n0, n1, th / 2 - 2, th / 2 + 1, dark);                          // sap
+  lbox(g, -4, 4, n1, n1 + 17, th / 2 - 2, th / 2 - 0.5, acoustic ? dark : mat.drumHead); // kafa
+  if (acoustic) {
+    const hole = new THREE.Mesh(new THREE.CylinderGeometry(4.5, 4.5, 0.4, 28), mat.drumHead);
+    hole.rotation.x = Math.PI / 2;
+    hole.position.set(0, c2 - 4, th / 2);
+    g.add(hole);
+    lbox(g, -7, 7, c1 - 7, c1 - 4.5, th / 2, th / 2 + 0.8, dark);                      // köprü
+  } else {
+    lbox(g, -11, 7, c1 - 9, c2 + 3, th / 2, th / 2 + 0.3, mat.keyWhite);               // pena koruyucu
+    lbox(g, -3.5, 3.5, c1 - 2, c1, th / 2 + 0.3, th / 2 + 1, mat.drumHead);             // manyetikler
+    lbox(g, -3.5, 3.5, c2 - 6, c2 - 4, th / 2 + 0.3, th / 2 + 1, mat.drumHead);
+    lbox(g, -4.5, 4.5, c1 - 8, c1 - 6, th / 2, th / 2 + 1, mat.chrome);                // köprü
+  }
+  outer.traverse(o => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; furnitureMeshes.push(o); } });
+}
+// Klavyenin eski yerinde (ortak duvar boyunca) sıralı gitar standı ve 4 gitar
+{
+  const gx = L.study.x0, zc = L.study.z0 + 137, rz0 = zc - 85, rz1 = zc + 85;
+  F(gx + 12, gx + 16, rz0, rz1, 0, 3, mat.drumHead);          // arka ray
+  F(gx + 36, gx + 40, rz0, rz1, 0, 3, mat.drumHead);          // ön ray
+  F(gx + 12, gx + 40, rz0, rz0 + 4, 0, 3, mat.drumHead);      // uç bağlantıları
+  F(gx + 12, gx + 40, rz1 - 4, rz1, 0, 3, mat.drumHead);
+  F(gx + 33, gx + 41, rz0, rz1, 5, 9, mat.riser);             // köpüklü alt beşik
+  F(gx + 12, gx + 16, rz0, rz0 + 4, 0, 92, mat.drumHead);     // dikmeler
+  F(gx + 12, gx + 16, rz1 - 4, rz1, 0, 92, mat.drumHead);
+  F(gx + 10, gx + 16, rz0, rz1, 86, 90, mat.drumHead);        // sap taşıyıcı
+  const set = [['#d9ae74', true], ['#b8561e', false], ['#1d1d21', false], ['#9e1b22', false]];
+  set.forEach(([color, acoustic], i) => {
+    const z = zc + (i - 1.5) * 40;
+    F(gx + 15, gx + 19, z - 4, z + 4, 90, 93, mat.riser);     // sap yuvası
+    guitar({ x: gx + 37, z, color, acoustic });
+  });
 }
 // Balkon
 {
@@ -1210,6 +1272,33 @@ ball(288, 128, 24, 64, mat.plant);
   leaves.forEach(([a, b, hinge], i) => cabinetDoor({
     name: `Dolap kapağı ${i + 1}`, axis: 'z', c: front, a0: w0 + a, a1: w0 + b, hinge, swing: 1, y0: 2, y1: 218,
   }));
+}
+// Koridor: çelik kapının yanındaki duvarda (kısa kol tarafı) boy aynası
+{
+  const zc = (L.corrS.z1 + L.entry.z0) / 2, x = L.corrL.x0;
+  F(x, x + 2.5, zc - 32, zc + 32, 22, 198, mat.woodDark);
+  F(x + 2.5, x + 3, zc - 29, zc + 29, 25, 195, mat.mirror);
+}
+// Koridor kısa kolu: salon kapısının tam karşısındaki duvarda boydan portmanto, iki kapaklı
+{
+  const zb = L.corrS.z1, zf = zb - 38, x0 = L.corrS.x0 + 2, x1 = L.corrL.x0 - 2, h = 230, xm = (x0 + x1) / 2;
+  F(x0, x1, zb - 2, zb, 0, h, mat.white);                     // arka
+  F(x0, x0 + 2, zf, zb - 2, 0, h, mat.white);                 // yanlar
+  F(x1 - 2, x1, zf, zb - 2, 0, h, mat.white);
+  F(x0 + 2, x1 - 2, zf, zb - 2, h - 2, h, mat.white);         // üst
+  F(x0 + 2, x1 - 2, zf, zb - 2, 0, 8, mat.white);             // taban
+  F(x0 + 2, x1 - 2, zf + 2, zb - 2, 178, 180, mat.white);     // şapkalık rafı
+  const rod = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, x1 - x0 - 4, 12), mat.chrome);
+  rod.rotation.z = Math.PI / 2;
+  rod.position.set(xm, 168, -(zf + 19));
+  rod.castShadow = rod.receiveShadow = true;
+  furniture.add(rod);
+  furnitureMeshes.push(rod);
+  for (const [cx, c] of [[x0 + 18, '#2f3b52'], [x0 + 44, '#a07a4f'], [x0 + 70, '#55585e']]) {
+    F(cx - 4, cx + 4, zf + 4, zb - 4, 92, 166, std(c));        // asılı montlar
+  }
+  cabinetDoor({ name: 'Portmanto kapağı 1', axis: 'x', c: zf, a0: x0, a1: xm, hinge: 'a0', swing: -1, y0: 2, y1: h - 2 });
+  cabinetDoor({ name: 'Portmanto kapağı 2', axis: 'x', c: zf, a0: xm, a1: x1, hinge: 'a1', swing: -1, y0: 2, y1: h - 2 });
 }
 // Koridor: ayakkabılık (çelik kapının karşısı)
 F(L.corrL.x1 - 28, L.corrL.x1, L.entry.z0 + 12, L.entry.z1, 0, 100, mat.white);
