@@ -14,10 +14,14 @@ Yerel sunucu isterseniz: `python3 -m http.server` → `http://localhost:8000`.
 | Evin ortasındaki pivot etrafında sağa-sola döndürme | sol tuşla yatay sürükleme | tek parmakla kaydırma | ← → |
 | Bakış açısını eğme | dikey sürükleme | tek parmakla dikey kaydırma | ↑ ↓ |
 | Yakınlaştırma | tekerlek | iki parmak | + − |
+| Odaya odaklan | odaya tıklama | dokunma | — |
+| Tüm daireye dön | boş alana ya da başka odaya tıklama | dokunma | Esc |
 | Kapı aç / kapat | kapıya, kasasına ya da üstündeki lentoya tıklama | dokunma | — |
 
 Paneldeki **Kapıları aç**, **Üstten bak**, **Sıfırla** düğmeleri ve **Etiketler** / **Mobilya** anahtarları da kullanılabilir.
-Oda tablosunda bir oda adına tıklamak kamerayı o odaya odaklar; **Sıfırla** pivotu evin ortasına geri getirir.
+Bir odaya tıklandığında kamera pivotunu o odanın merkezine alır, odayı kadraja sığdırır ve diğer odalar soluklaşır;
+döndürme artık odanın merkezi etrafında olur. Boş alana ya da başka bir odaya tıklamak kamerayı dairenin merkezine
+ve tüm daireyi gören uzaklığa geri getirir. Oda tablosundaki adlar da aynı odağı açıp kapatır.
 
 ## Yerleşim (plan, üstten; ölçekli taslak, 1 karakter ≈ 12 cm)
 
@@ -31,7 +35,7 @@ Oda tablosunda bir oda adına tıklamak kamerayı o odaya odaklar; **Sıfırla**
                          │                         │
                          ├ kapı    ─┬──────────────┤
             çelik kapı   ┃ KORİDOR  │    BANYO     │
-             bina holü   ┃ 128×203  │  142 × 300   │
+             bina holü   ┃ 128×223  │  142 × 320   │
                 ┌────────┘          ┊              │
                 │ koridor 228×97    ┊              │
 ┌───────────────┴─ kapısız─┬ kapı   ┴──────────────┤
@@ -61,13 +65,14 @@ Tüm ölçüler cm ve iç yüzden iç yüze. Sahnede 1 birim = 1 cm.
 - **Çalışma odası kapısı:** 260 − 162 = 98 cm boşluk, salon tarafındaki köşede.
 - **Koridor kısa kolu:** **228 × 97 cm**. Z = 97 (ölçülen 87 + 10). X, salon kapısının sol kenarından
   uzun kolun sağ duvarına kadar: duvarlarla ≈ 248 cm.
-- **Koridor uzun kolu:** **128 × 203 cm**, kısa kolun üstünden yatak odası duvarına kadar. Sağ dış duvar düz kabul
+- **Koridor uzun kolu:** **128 × 223 cm**, kısa kolun üstünden yatak odası duvarına kadar. Sağ dış duvar düz kabul
   edildiğinde yatak odası kapısının sol kenarı koridorun sol duvarıyla aynı hizaya gelir.
-- **Banyo (kalan alan):** genişlik 280 − 128 − 10 = **142 cm**, derinlik 97 + 203 = **300 cm**.
+- **Banyo (kalan alan):** genişlik 280 − 128 − 10 = **142 cm**, derinlik 97 + 223 = **320 cm**.
 - **Kapı sırası:** koridorda yatak odasından salona doğru önce çelik kapı (sol duvar), sonra banyo kapısı
   (sağ duvar) gelir. Kapılar karşılıklı değil.
-- **Banyo yerleşimi:** sağ (komşu) duvar boyunca çalışma odası tarafında klozet; yatak odası köşesinde
-  duşakabin, aynı hizada çamaşır makinesi ve onun yanında lavabo.
+- **Banyo yerleşimi** (kapıdan girerken): sağdaki duvarda (çalışma odası tarafı) lavabo ve köşede üst üste
+  çamaşır + kurutma makinesi; karşıdaki duvarda klozet, duvarın geri kalanı boş; soldaki duvarda (yatak odası
+  tarafı) kapıya yakın köşede duşakabin.
 - **Yatak odası:** 280 × 256 cm (teyit edildi).
 - **Kapılar:** boşluk 100 cm, yükseklik 215 cm. Kasa payı düşülünce kanat ≈ 90 cm, açıkken net geçiş ≈ 85 cm.
   Yatak odası ve çalışma odası kapıları açılınca yan duvara (Z eksenine) paralel durur.
@@ -83,7 +88,7 @@ const M = {
   doorGap: 100, doorHeight: 215,
   salon:    { w: 306, dLiving: 393, island: 50, dKitchen: 160 },
   study:    { w: 260, d: 410, topWall: 162 },
-  corridor: { shortD: 97, longW: 128, longD: 203 },
+  corridor: { shortD: 97, longW: 128, longD: 223 },
   bedroom:  { w: 280, d: 256, straight: 120, niche: 60, nicheDepth: 5 },
 };
 ```

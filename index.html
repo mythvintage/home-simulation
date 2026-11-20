@@ -250,6 +250,8 @@ body {
   border-radius: 4px;
 }
 .room-btn:hover { color: var(--accent); }
+.rooms tr.active td { background: var(--accent-soft); }
+.rooms tr.active .room-btn { color: var(--accent); font-weight: 600; }
 .chip {
   display: inline-block;
   font: 500 10px/1 var(--font-mono);
@@ -337,7 +339,7 @@ details li b { color: var(--fg); font-weight: 500; }
         <label class="toggle"><input type="checkbox" id="tFurniture" checked><span>Mobilya</span></label>
       </div>
       <div>
-        <p class="section-label">Odalar · ada tıkla, kamera odaklansın</p>
+        <p class="section-label">Odalar · adına tıkla, kamera odaklansın</p>
         <table class="rooms" id="roomTable"><tbody></tbody><tfoot></tfoot></table>
       </div>
       <details id="assumptions">
@@ -346,7 +348,7 @@ details li b { color: var(--fg); font-weight: 500; }
       </details>
     </div>
   </aside>
-  <div class="hint" id="hint"><b>Sürükle</b> döndür · <b>Tekerlek</b> yakınlaştır · <b>Kapıya tıkla</b> aç / kapat</div>
+  <div class="hint" id="hint"><b>Sürükle</b> döndür · <b>Tekerlek</b> yakınlaştır · <b>Odaya tıkla</b> odaklan · <b>Kapıya tıkla</b> aç / kapat</div>
 </div>
 
 <script type="module">
@@ -365,9 +367,9 @@ const M = {
   doorHeight: 215,       // kapı boşluğu yüksekliği
   salon:    { w: 306, dLiving: 393, island: 50, dKitchen: 160 }, // salon · ada tezgah · açık mutfak (Z)
   study:    { w: 260, d: 410, topWall: 162 },        // çalışma odası
-  corridor: { shortD: 97, longW: 128, longD: 203 }, // L: kısa kol Z · uzun kol X ve Z (kısa kolun üstünden)
+  corridor: { shortD: 97, longW: 128, longD: 223 }, // L: kısa kol Z · uzun kol X ve Z (kısa kolun üstünden)
   bedroom:  { w: 280, d: 256, straight: 120, niche: 60, nicheDepth: 5 }, // küçük oda
-  // Banyo ölçülmedi: kalan alandan hesaplanır (genişlik 280 − 128 − 10, derinlik 97 + 203)
+  // Banyo ölçülmedi: kalan alandan hesaplanır (genişlik 280 − 128 − 10, derinlik 97 + 223)
 };
 // Salon + ada tezgah + açık mutfak toplam Z (393 + 50 + 160)
 const SALON_D = M.salon.dLiving + M.salon.island + M.salon.dKitchen;
@@ -405,6 +407,26 @@ const L = (() => {
   o.outer = { x0: -te, x1: o.right + te, z0: -te, z1: o.bed.z1 + te };
   return o;
 })();
+
+// Oda alanları: tıklanınca odaklanma ve diğer odaları soluklaştırma için plan dikdörtgenleri
+const SPACES = [
+  { id: 'salon', name: 'Salon', rects: [[0, L.salon.x1, 0, L.kitchenZ]] },
+  { id: 'mutfak', name: 'Açık mutfak', rects: [[0, L.salon.x1, L.kitchenZ, L.salon.z1]] },
+  { id: 'calisma', name: 'Çalışma odası', rects: [[L.study.x0, L.study.x1, L.study.z0, L.study.z1]] },
+  { id: 'balkon', name: 'Balkon', rects: [[L.balcony.x0, L.balcony.x1, L.balcony.z0, L.balcony.z1]] },
+  { id: 'koridor', name: 'Koridor', rects: [[L.corrS.x0, L.corrS.x1, L.corrS.z0, L.corrS.z1], [L.corrL.x0, L.corrL.x1, L.corrL.z0, L.corrL.z1]] },
+  { id: 'banyo', name: 'Banyo', rects: [[L.bath.x0, L.bath.x1, L.bath.z0, L.bath.z1]] },
+  { id: 'yatak', name: 'Yatak odası', rects: [[L.bed.x0, L.bed.x1, L.bed.z0, L.bed.z1]] },
+];
+const SPACE = Object.fromEntries(SPACES.map(sp => [sp.id, sp]));
+// Uzun duvarlar oda sınırlarında bölünür; odaklanınca yalnızca odaya değen parçalar opak kalır
+const CUTS = {
+  x: [...new Set(SPACES.flatMap(sp => sp.rects.flatMap(r => [r[0], r[1]])))].sort((a, b) => a - b),
+  z: [...new Set(SPACES.flatMap(sp => sp.rects.flatMap(r => [r[2], r[3]])))].sort((a, b) => a - b),
+};
+function spaceAt(x, z, tol = 1) {
+  return SPACES.find(sp => sp.rects.some(r => x >= r[0] - tol && x <= r[1] + tol && z >= r[2] - tol && z <= r[3] + tol)) || null;
+}
 
 /* =====================================================================
    3) SAHNE
@@ -477,7 +499,7 @@ const mat = {
   blanket: std('#8496b0'),
   plant: std('#5d8a4f'),
   terracotta: std('#b4643f'),
-  mirror: std('#cfe0e8', { roughness: 0.05, metalness: 0.9 }),
+  mirror: std('#d6e4ea', { roughness: 0.08, metalness: 0.25 }),
 };
 const wallMats = [mat.wall, mat.wall, mat.cap, mat.wall, mat.wall, mat.wall];
 
@@ -569,22 +591,28 @@ const lintels = new Map();
 function wall(x0, x1, z0, z1, openings = []) {
   const alongX = (x1 - x0) >= (z1 - z0);
   const [a0, a1] = alongX ? [x0, x1] : [z0, z1];
-  const piece = (s0, s1, y0, y1, m = wallMats) => {
+  const piece = (s0, s1, y0, y1, m = wallMats, split = false) => {
     if (s1 - s0 < 0.5 || y1 - y0 < 0.5) return null;
-    const mesh = alongX ? boxMesh(s0, s1, z0, z1, y0, y1, m) : boxMesh(x0, x1, s0, s1, y0, y1, m);
-    blockers.push(mesh);
+    const cuts = split ? (alongX ? CUTS.x : CUTS.z).filter(c => c > s0 + 0.5 && c < s1 - 0.5) : [];
+    const edges = [s0, ...cuts, s1];
+    let mesh = null;
+    for (let i = 0; i < edges.length - 1; i++) {
+      const [e0, e1] = [edges[i], edges[i + 1]];
+      mesh = alongX ? boxMesh(e0, e1, z0, z1, y0, y1, m) : boxMesh(x0, x1, e0, e1, y0, y1, m);
+      blockers.push(mesh);
+    }
     return mesh;
   };
   let cur = a0;
   for (const o of [...openings].sort((p, q) => p.a0 - q.a0)) {
-    piece(cur, o.a0, 0, H);
+    piece(cur, o.a0, 0, H, wallMats, true);
     piece(o.a0, o.a1, 0, o.y0 || 0);
     const lin = piece(o.a0, o.a1, o.y1, H);
     if (o.key && lin) lintels.set(o.key, lin);
     if (!o.y0) piece(o.a0, o.a1, 0, 1.2, mat.threshold); // eşik / denizlik
     cur = o.a1;
   }
-  piece(cur, a1, 0, H);
+  piece(cur, a1, 0, H, wallMats, true);
 }
 
 function floor(x0, x1, z0, z1, tex, texSize) {
@@ -598,6 +626,7 @@ function floor(x0, x1, z0, z1, tex, texSize) {
   const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: tex, roughness: 0.75 }));
   m.position.set((x0 + x1) / 2, 0.6, -(z0 + z1) / 2);
   m.receiveShadow = true;
+  m.userData.kind = 'floor';
   structure.add(m);
   blockers.push(m);
 }
@@ -803,6 +832,7 @@ function railing(x0, x1, zc, h = 105) {
   g.translate(0, -20, 0);
   const slab = new THREE.Mesh(g, mat.slab);
   slab.receiveShadow = true;
+  slab.userData.keep = true;   // kat döşemesi odakta soluklaşmaz
   slab.castShadow = true;
   structure.add(slab);
   // Bina holü (giriş sahanlığı, yalnızca bağlam için)
@@ -928,32 +958,40 @@ ball(288, 128, 24, 64, mat.plant);
   cyl(552, L.balcony.z1 - 25, 16, 0, 40, mat.terracotta);
   ball(552, L.balcony.z1 - 25, 24, 64, mat.plant);
 }
-// Banyo — sağ (komşu) duvar boyunca: klozet · lavabo · çamaşır makinesi · duşakabin
+// Banyo — kapıdan girince: sağ duvarda lavabo + çamaşır/kurutma makinesi,
+// karşı duvarda klozet (gerisi boş), sol duvarda kapı tarafındaki köşede duşakabin
 {
-  const { x1, z0, z1 } = L.bath;
-  // klozet (çalışma odası duvarı tarafında)
-  F(x1 - 18, x1, z0 + 15, z0 + 55, 0, 82, mat.white);
-  F(x1 - 60, x1 - 18, z0 + 19, z0 + 51, 0, 40, mat.white);
-  F(x1 - 62, x1 - 18, z0 + 17, z0 + 53, 40, 42, mat.white);
-  // duşakabin köşesinden geriye doğru: çamaşır makinesi, yanında lavabo
-  const wz = z1 - 90 - 60, sz = wz - 50;
-  // lavabo dolabı + ayna
-  F(x1 - 45, x1, sz, sz + 50, 0, 82, mat.woodLight);
-  F(x1 - 47, x1, sz - 1, sz + 50, 82, 86, mat.white);
-  F(x1 - 38, x1 - 8, sz + 10, sz + 40, 85.5, 86.3, mat.appliance);
-  F(x1 - 2, x1, sz + 5, sz + 45, 110, 175, mat.mirror);
-  // çamaşır makinesi: lavabonun yanındaki boşlukta
-  F(x1 - 60, x1, wz + 1, wz + 59, 0, 85, mat.white);
-  const porthole = new THREE.Mesh(new THREE.CylinderGeometry(17, 17, 1.5, 28), mat.black);
-  porthole.rotation.z = Math.PI / 2;
-  porthole.position.set(x1 - 60.5, 45, -(wz + 30));
-  furniture.add(porthole);
-  furnitureMeshes.push(porthole);
-  // duşakabin: çamaşır makinesiyle aynı hizada, yatak odası duvarı köşesinde
-  F(x1 - 90, x1, z1 - 90, z1, 0.6, 6, mat.white);
-  F(x1 - 90, x1, z1 - 91, z1 - 89, 6, 200, mat.glass).castShadow = false;
-  F(x1 - 91, x1 - 89, z1 - 90, z1 - 45, 6, 200, mat.glass).castShadow = false;
-  cyl(x1 - 12, z1 - 45, 1.2, 100, 205, mat.appliance, 10);
+  const { x0, x1, z0, z1 } = L.bath;
+  const porthole = (x, y, z) => {
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(16, 16, 1.5, 28), mat.black);
+    m.rotation.x = Math.PI / 2;
+    m.position.set(x, y, -z);
+    furniture.add(m);
+    furnitureMeshes.push(m);
+  };
+  // sağ duvar (çalışma odası tarafı): kapıya yakın lavabo + ayna
+  const sx = x0 + 12;
+  F(sx, sx + 60, z0, z0 + 45, 0, 82, mat.woodLight);
+  F(sx - 1, sx + 61, z0, z0 + 47, 82, 86, mat.white);
+  F(sx + 12, sx + 48, z0 + 8, z0 + 38, 85.5, 86.3, mat.appliance);
+  F(sx + 5, sx + 55, z0, z0 + 2, 110, 175, mat.mirror);
+  // köşede çamaşır makinesi, üstünde kurutma makinesi
+  const wx = x1 - 60;
+  F(wx, x1, z0 + 1, z0 + 59, 0, 85, mat.white);
+  F(wx + 1, x1 - 1, z0 + 2, z0 + 58, 85, 86, mat.appliance);
+  F(wx, x1, z0 + 1, z0 + 59, 86, 171, mat.white);
+  porthole(wx + 30, 45, z0 + 59.8);
+  porthole(wx + 30, 128, z0 + 59.8);
+  // kapının karşısındaki duvar: klozet
+  const tz = (L.bathDoor.z0 + L.bathDoor.z1) / 2 + 15;
+  F(x1 - 18, x1, tz - 20, tz + 20, 0, 82, mat.white);
+  F(x1 - 60, x1 - 18, tz - 16, tz + 16, 0, 40, mat.white);
+  F(x1 - 62, x1 - 18, tz - 18, tz + 18, 40, 42, mat.white);
+  // sol duvar (yatak odası tarafı): kapıya yakın köşede duşakabin
+  F(x0, x0 + 90, z1 - 90, z1, 0.6, 6, mat.white);
+  F(x0, x0 + 45, z1 - 91, z1 - 89, 6, 200, mat.glass).castShadow = false;
+  F(x0 + 89, x0 + 91, z1 - 90, z1, 6, 200, mat.glass).castShadow = false;
+  cyl(x0 + 3, z1 - 45, 1.2, 100, 205, mat.appliance, 10);
 }
 // Yatak odası
 {
@@ -1019,27 +1057,27 @@ const bathD = L.bath.z1 - L.bath.z0;
 const balconyD = SALON_D - M.study.d;
 
 const ROOMS = [
-  { name: 'Salon', dims: `${M.salon.w} × ${M.salon.dLiving}`, m2: area(M.salon.w, M.salon.dLiving), st: 'ok',
+  { name: 'Salon', dims: `${M.salon.w} × ${M.salon.dLiving}`, m2: area(M.salon.w, M.salon.dLiving), st: 'ok', space: 'salon',
     box: [0, L.salon.x1, 0, L.kitchenZ], label: [L.salon.x1 / 2, 215] },
-  { name: 'Ada tezgah', dims: `${M.salon.w} × ${M.salon.island}`, m2: area(M.salon.w, M.salon.island), st: 'est', noLabel: true,
+  { name: 'Ada tezgah', dims: `${M.salon.w} × ${M.salon.island}`, m2: area(M.salon.w, M.salon.island), st: 'est', noLabel: true, space: 'mutfak',
     box: [0, L.salon.x1, L.kitchenZ - 60, L.kitchenZ1 + 60] },
-  { name: 'Açık mutfak', dims: `${M.salon.w} × ${M.salon.dKitchen}`, m2: area(M.salon.w, M.salon.dKitchen), st: 'calc',
+  { name: 'Açık mutfak', dims: `${M.salon.w} × ${M.salon.dKitchen}`, m2: area(M.salon.w, M.salon.dKitchen), st: 'calc', space: 'mutfak',
     box: [0, L.salon.x1, L.kitchenZ1, L.salon.z1], label: [L.salon.x1 / 2, (L.kitchenZ1 + L.salon.z1) / 2] },
-  { name: 'Çalışma odası', dims: `${M.study.w} × ${M.study.d}`, m2: area(M.study.w, M.study.d), st: 'ok',
+  { name: 'Çalışma odası', dims: `${M.study.w} × ${M.study.d}`, m2: area(M.study.w, M.study.d), st: 'ok', space: 'calisma',
     box: [L.study.x0, L.study.x1, L.study.z0, L.study.z1], label: [(L.study.x0 + L.study.x1) / 2, L.study.z1 - 98] },
-  { name: 'Balkon', dims: `${M.study.w} × ${balconyD}`, m2: area(M.study.w, balconyD), st: 'calc', outside: true,
+  { name: 'Balkon', dims: `${M.study.w} × ${balconyD}`, m2: area(M.study.w, balconyD), st: 'calc', outside: true, space: 'balkon',
     box: [L.balcony.x0, L.balcony.x1, L.balcony.z0, L.balcony.z1], label: [(L.balcony.x0 + L.balcony.x1) / 2, (L.balcony.z0 + L.balcony.z1) / 2 + 30] },
-  { name: 'Koridor', dims: `${corrSW}×${M.corridor.shortD} + ${corrLW}×${corrLen}`, m2: area(corrSW, M.corridor.shortD) + area(corrLW, corrLen), st: 'est',
+  { name: 'Koridor', dims: `${corrSW}×${M.corridor.shortD} + ${corrLW}×${corrLen}`, m2: area(corrSW, M.corridor.shortD) + area(corrLW, corrLen), st: 'est', space: 'koridor',
     box: [L.corrS.x0, L.corrL.x1, L.corrS.z0, L.corrL.z1], label: [(L.corrS.x0 + L.corrS.x1) / 2, (L.corrS.z0 + L.corrS.z1) / 2], sub: `L · tavan ${M.corridorCeiling}` },
-  { name: 'Banyo', dims: `${bathW} × ${bathD}`, m2: area(bathW, bathD), st: 'est',
+  { name: 'Banyo', dims: `${bathW} × ${bathD}`, m2: area(bathW, bathD), st: 'est', space: 'banyo',
     box: [L.bath.x0, L.bath.x1, L.bath.z0, L.bath.z1], label: [(L.bath.x0 + L.bath.x1) / 2, L.bath.z1 - 60] },
-  { name: 'Yatak odası', dims: `${M.bedroom.w} × ${M.bedroom.d}`, m2: area(M.bedroom.w, M.bedroom.d), st: 'ok',
+  { name: 'Yatak odası', dims: `${M.bedroom.w} × ${M.bedroom.d}`, m2: area(M.bedroom.w, M.bedroom.d), st: 'ok', space: 'yatak',
     box: [L.bed.x0, L.bed.x1, L.bed.z0, L.bed.z1], label: [(L.bed.x0 + L.bed.x1) / 2, L.bed.z0 + 117] },
 ];
 const ST = { ok: 'ölçü', calc: 'hesap', est: 'tahmin' };
 
 const labelDefs = [
-  ...ROOMS.filter(r => !r.noLabel).map(r => ({ title: r.name, sub: r.sub || `${r.dims} cm`, x: r.label[0], z: r.label[1], y: 140 })),
+  ...ROOMS.filter(r => !r.noLabel).map(r => ({ title: r.name, sub: r.sub || `${r.dims} cm`, x: r.label[0], z: r.label[1], y: 140, space: r.space })),
   { title: 'Bina holü', sub: 'giriş · çelik kapı', x: L.corrL.x0 - te - 100, z: L.entry.z1 + 20, y: 20, minor: true },
   { title: 'AĞAÇLIK ALAN CEPHESİ', x: (L.outer.x0 + L.outer.x1) / 2, z: -80, y: 0, variant: 'facade' },
   { title: 'CADDE CEPHESİ', x: (L.bed.x0 + L.bed.x1) / 2, z: L.outer.z1 + 90, y: 0, variant: 'facade' },
@@ -1143,11 +1181,12 @@ const goal = { yaw: HOME.yaw, pitch: HOME.pitch, r: 1800, pivot: center.clone() 
 const PITCH_MIN = 0.12, PITCH_MAX = 1.553, R_MIN = 250, R_MAX = 7000;
 let viewShift = 0;
 
-function fitRadius() {
+const HOUSE_R = 0.5 * Math.hypot(L.outer.x1 - L.outer.x0, L.outer.z1 - L.outer.z0, H) + 30;
+// R yarıçaplı küreyi ekrana sığdıran kamera uzaklığı
+function fitRadius(R = HOUSE_R) {
   const w = canvas.clientWidth - viewShift * 2, h = canvas.clientHeight;
   const vf = THREE.MathUtils.degToRad(camera.fov);
   const hf = 2 * Math.atan(Math.tan(vf / 2) * (Math.max(w, 200) / h));
-  const R = 0.5 * Math.hypot(L.outer.x1 - L.outer.x0, L.outer.z1 - L.outer.z0, H) + 30;
   return R / Math.sin(Math.min(vf, hf) / 2);
 }
 function resetView() {
@@ -1159,14 +1198,104 @@ function resetView() {
 function topView() {
   goal.yaw = Math.round(goal.yaw / (Math.PI * 2)) * Math.PI * 2;
   goal.pitch = PITCH_MAX;
+  if (focused) return;               // odaktaysa odanın üstünden bak
   goal.r = fitRadius() * 1.02;
   goal.pivot.copy(center);
 }
-function focusRoom(room) {
-  const [x0, x1, z0, z1] = room.box;
+
+/* ---------- Oda odağı: pivot odanın merkezine geçer, diğer odalar soluklaşır ---------- */
+const FADE = 0.12;
+let focused = null;        // odaklanılan oda
+let ghostSpace = null;     // soluklaştırmanın hesaplandığı oda (geri dönüş animasyonu bitene kadar)
+let fadeCur = 1, fadeTarget = 1;
+let preFocusPitch = HOME.pitch;
+const ghostCache = new Map();
+const ghosted = [];
+const box3 = new THREE.Box3();
+
+function ghostMaterial(m) {
+  let g = ghostCache.get(m);
+  if (!g) {
+    g = m.clone();
+    g.transparent = true;
+    g.depthWrite = false;
+    g.userData.base = m.transparent ? m.opacity : 1;
+    g.opacity = g.userData.base * fadeCur;
+    ghostCache.set(m, g);
+  }
+  return g;
+}
+function planBox(mesh) {
+  box3.setFromObject(mesh);
+  return [box3.min.x, box3.max.x, -box3.max.z, -box3.min.z];
+}
+// Duvar, kapı, cam: odaya değiyorsa (yalnızca köşeden değil) opak kalır
+function touches(b, sp) {
+  return sp.rects.some(r => {
+    const ox = Math.min(b[1], r[1] + 1) - Math.max(b[0], r[0] - 1);
+    const oz = Math.min(b[3], r[3] + 1) - Math.max(b[2], r[2] - 1);
+    return ox >= 0 && oz >= 0 && (ox > 2 || oz > 2);
+  });
+}
+function restoreGhosts() {
+  for (const m of ghosted) {
+    m.material = m.userData.orig;
+    m.castShadow = m.userData.cast;
+    delete m.userData.orig;
+  }
+  ghosted.length = 0;
+  ghostSpace = null;
+}
+function applyGhosts(sp) {
+  restoreGhosts();
+  const fset = new Set(furnitureMeshes);
+  for (const root of [structure, doorsGroup, furniture]) root.traverse(o => {
+    if (!o.isMesh || o.userData.keep) return;
+    const b = planBox(o);
+    // zemin ve mobilya merkezine göre, yapı elemanları değmeye göre odaya ait sayılır
+    const inRoom = (o.userData.kind === 'floor' || fset.has(o))
+      ? spaceAt((b[0] + b[1]) / 2, (b[2] + b[3]) / 2, 0) === sp
+      : touches(b, sp);
+    if (inRoom) return;
+    o.userData.orig = o.material;
+    o.userData.cast = o.castShadow;
+    o.material = Array.isArray(o.material) ? o.material.map(ghostMaterial) : ghostMaterial(o.material);
+    o.castShadow = false;
+    ghosted.push(o);
+  });
+  ghostSpace = sp;
+}
+function setFade(f) {
+  fadeCur = f;
+  for (const g of ghostCache.values()) g.opacity = g.userData.base * f;
+  for (const s of labelSprites) {
+    const d = s.userData.def;
+    s.material.opacity = (ghostSpace && d.space !== ghostSpace.id) ? f : 1;
+  }
+}
+function focusSpace(sp) {
+  if (!sp) return;
+  if (!focused) preFocusPitch = goal.pitch;
+  focused = sp;
+  setHover(null);
+  const xs = sp.rects.flatMap(r => [r[0], r[1]]), zs = sp.rects.flatMap(r => [r[2], r[3]]);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs), z0 = Math.min(...zs), z1 = Math.max(...zs);
   goal.pivot.set((x0 + x1) / 2, 30, -(z0 + z1) / 2);
-  goal.r = Math.min(R_MAX, Math.max(x1 - x0, z1 - z0) * 2.4 + 250);
-  goal.pitch = Math.max(goal.pitch, 0.95);
+  goal.r = THREE.MathUtils.clamp(fitRadius(0.5 * Math.hypot(x1 - x0, z1 - z0, H) + 25), R_MIN, R_MAX);
+  goal.pitch = Math.max(goal.pitch, 1.05);
+  applyGhosts(sp);
+  fadeTarget = FADE;
+  syncFocusUI();
+}
+// Tüm daireye dön: pivot evin ortası, tüm daireyi gören uzaklık
+function unfocus() {
+  if (!focused) return;
+  focused = null;
+  goal.pivot.copy(center);
+  goal.r = fitRadius();
+  goal.pitch = preFocusPitch;
+  fadeTarget = 1;
+  syncFocusUI();
 }
 
 function updateCamera() {
@@ -1200,13 +1329,30 @@ const pointers = new Map();
 let press = null, pinch = null, hovered = null;
 const accentColor = new THREE.Color();
 
-function pickDoor(clientX, clientY) {
+// Soluklaşmış nesneler tıklanmaz; odakta yalnızca açık odadaki nesneler hedeflenir
+function pick(clientX, clientY) {
   const rect = canvas.getBoundingClientRect();
   ndc.set(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
   raycaster.setFromCamera(ndc, camera);
-  const targets = furniture.visible ? blockers.concat(furnitureMeshes, doorParts) : blockers.concat(doorParts);
-  const hit = raycaster.intersectObjects(targets, false)[0];
+  const all = furniture.visible ? blockers.concat(furnitureMeshes, doorParts) : blockers.concat(doorParts);
+  const targets = ghosted.length ? all.filter(m => !m.userData.orig) : all;
+  return raycaster.intersectObjects(targets, false)[0] || null;
+}
+function pickDoor(clientX, clientY) {
+  const hit = pick(clientX, clientY);
   return hit ? (hit.object.userData.door || null) : null;
+}
+// Tıklama: kapı → aç/kapat · oda → odaklan · odaktayken boş alan ya da başka oda → tüm daire
+function handleClick(clientX, clientY) {
+  const hit = pick(clientX, clientY);
+  const door = hit && hit.object.userData.door;
+  if (door) { toggleDoor(door); return; }
+  const sp = hit ? spaceAt(hit.point.x, -hit.point.z) : null;
+  if (focused) {
+    if (!hit || (sp && sp !== focused)) unfocus();
+    return;
+  }
+  if (sp) focusSpace(sp);
 }
 function setHover(door) {
   if (door === hovered) return;
@@ -1235,7 +1381,12 @@ canvas.addEventListener('pointerdown', e => {
 canvas.addEventListener('pointermove', e => {
   const p = pointers.get(e.pointerId);
   if (!p) {
-    if (e.pointerType === 'mouse') setHover(pickDoor(e.clientX, e.clientY));
+    if (e.pointerType === 'mouse') {
+      const hit = pick(e.clientX, e.clientY);
+      const door = hit && hit.object.userData.door || null;
+      setHover(door);
+      if (!door) canvas.classList.toggle('over-door', !focused && !!hit && !!spaceAt(hit.point.x, -hit.point.z));
+    }
     return;
   }
   const dx = e.clientX - p.x, dy = e.clientY - p.y;
@@ -1257,10 +1408,7 @@ function endPointer(e) {
   if (pointers.size < 2) pinch = null;
   if (pointers.size === 0) {
     canvas.classList.remove('dragging');
-    if (press && !press.moved && e.type === 'pointerup') {
-      const door = pickDoor(e.clientX, e.clientY);
-      if (door) toggleDoor(door);
-    }
+    if (press && !press.moved && e.type === 'pointerup') handleClick(e.clientX, e.clientY);
     press = null;
   }
 }
@@ -1272,6 +1420,7 @@ canvas.addEventListener('wheel', e => {
   goal.r = THREE.MathUtils.clamp(goal.r * Math.exp(e.deltaY * 0.0012), R_MIN, R_MAX);
 }, { passive: false });
 window.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { unfocus(); return; }
   if (e.target.closest && e.target.closest('input, button, summary, a')) return;
   const k = e.key;
   if (k === 'ArrowLeft') goal.yaw += 0.12;
@@ -1296,7 +1445,7 @@ btnDoors.addEventListener('click', () => {
   syncDoorButton();
 });
 document.getElementById('btnTop').addEventListener('click', topView);
-document.getElementById('btnReset').addEventListener('click', resetView);
+document.getElementById('btnReset').addEventListener('click', () => { unfocus(); resetView(); });
 document.getElementById('tLabels').addEventListener('change', e => { labels.visible = e.target.checked; });
 document.getElementById('tFurniture').addEventListener('change', e => {
   furniture.visible = e.target.checked;
@@ -1313,14 +1462,19 @@ function setCollapsed(c) {
 }
 collapseBtn.addEventListener('click', () => setCollapsed(!panelEl.classList.contains('collapsed')));
 
+const rowMap = new Map();
 {
   const tbody = document.querySelector('#roomTable tbody');
   for (const r of ROOMS) {
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td><button class="room-btn" type="button">${r.name}</button></td>
+    tr.innerHTML = `<td><button class="room-btn" type="button" aria-pressed="false">${r.name}</button></td>
       <td class="dim">${r.dims}</td><td class="m2">${fmt(r.m2)}</td>
       <td><span class="chip ${r.st}">${ST[r.st]}</span></td>`;
-    tr.querySelector('button').addEventListener('click', () => focusRoom(r));
+    tr.querySelector('button').addEventListener('click', () => {
+      const sp = SPACE[r.space];
+      if (focused === sp) unfocus(); else focusSpace(sp);
+    });
+    rowMap.set(tr, r);
     tbody.appendChild(tr);
   }
   const net = ROOMS.filter(r => !r.outside).reduce((s, r) => s + r.m2, 0);
@@ -1338,7 +1492,7 @@ collapseBtn.addEventListener('click', () => setCollapsed(!panelEl.classList.cont
     `<b>Koridor uzun kolu:</b> <span class="num">${corrLW} × ${corrLen}</span>, kısa kolun üstünden yatak odası duvarına kadar. Yatak odası kapısının sol kenarı koridorun sol duvarıyla hizalı.`,
     `<b>Banyo (kalan alan):</b> genişlik <span class="num">${M.bedroom.w} − ${corrLW} − ${ti} = ${bathW}</span>, derinlik <span class="num">${M.corridor.shortD} + ${corrLen} = ${bathD}</span> cm.`,
     `<b>Kapı sırası:</b> koridorda yatak odasından salona doğru önce çelik kapı, sonra karşı duvarda banyo kapısı gelir; kapılar karşılıklı değil.`,
-    `<b>Banyo yerleşimi:</b> sağ duvar boyunca klozet, lavabo, yanındaki boşlukta çamaşır makinesi ve aynı hizada duşakabin.`,
+    `<b>Banyo yerleşimi:</b> kapıdan girince sağ duvarda lavabo ile üst üste çamaşır ve kurutma makinesi, karşı duvarda klozet, sol duvarda kapı tarafındaki köşede duşakabin.`,
     `<b>Kapılar:</b> boşluk <span class="num">${M.doorGap}</span>, yükseklik <span class="num">${M.doorHeight}</span>; kasa payı sonrası kanat ≈ <span class="num">${M.doorGap - 10}</span>, açıkken geçiş ≈ <span class="num">85</span>.`,
     `<b>Yükseklik:</b> odalar <span class="num">${H}</span>, koridor asma tavan <span class="num">${M.corridorCeiling}</span> cm.`,
   ];
@@ -1346,7 +1500,19 @@ collapseBtn.addEventListener('click', () => setCollapsed(!panelEl.classList.cont
 }
 
 const coarse = window.matchMedia('(pointer: coarse)').matches;
-if (coarse) hintEl.innerHTML = '<b>Sürükle</b> döndür · <b>İki parmak</b> yakınlaştır · <b>Kapıya dokun</b> aç / kapat';
+if (coarse) hintEl.innerHTML = '<b>Sürükle</b> döndür · <b>İki parmak</b> yakınlaştır · <b>Odaya dokun</b> odaklan · <b>Kapıya dokun</b> aç / kapat';
+const defaultHint = hintEl.innerHTML;
+function syncFocusUI() {
+  const verb = coarse ? 'dokun' : 'tıkla';
+  hintEl.innerHTML = focused
+    ? `<b>${focused.name}</b> odakta · boş alana ya da başka odaya ${verb}: tüm daire`
+    : defaultHint;
+  for (const [tr, r] of rowMap) {
+    const on = !!focused && r.space === focused.id;
+    tr.classList.toggle('active', on);
+    tr.querySelector('button').setAttribute('aria-pressed', String(on));
+  }
+}
 
 /* ---------- Tema ---------- */
 function applyTheme() {
@@ -1384,6 +1550,12 @@ function frame() {
     if (d.kind === 'hinge') d.pivot.rotation.y = d.thetaC + (d.thetaO - d.thetaC) * e;
     else d.group.position.copy(d.along).multiplyScalar(d.travel * e);
   }
+  if (fadeCur !== fadeTarget) {
+    let f = fadeCur + (fadeTarget - fadeCur) * (1 - Math.exp(-dt * (reduceMotion ? 40 : 7)));
+    if (Math.abs(f - fadeTarget) < 0.01) f = fadeTarget;
+    setFade(f);
+    if (f === 1 && !focused) { restoreGhosts(); setFade(1); }
+  }
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }
@@ -1404,7 +1576,7 @@ async function start() {
   window.addEventListener('resize', resize);
   clock.getDelta();
   requestAnimationFrame(frame);
-  window.__house = { doors, L, M, goal, view, camera, pickDoor };
+  window.__house = { doors, L, M, goal, view, camera, pickDoor, focusSpace, unfocus, SPACE, get focused() { return focused; }, ghosted };
 }
 start();
 </script>
