@@ -1,0 +1,1381 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Daire 3D Modeli</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: tam ekran 3B sahne; sol üstte yüzen plan paneli, altta etkileşim ipucu */
+:root {
+  --bg: #ebeaf0;
+  --scene: #e4e3eb;
+  --surface: #fcfcfe;
+  --surface-2: #f2f1f6;
+  --fg: #1c1a26;
+  --muted: #636075;
+  --line: #d9d6e3;
+  --accent: #5b3fc2;
+  --accent-ink: #ffffff;
+  --accent-soft: #ece8fb;
+  --ok-bg: #e1f0e5;
+  --ok-fg: #1c6636;
+  --calc-bg: #e2eafa;
+  --calc-fg: #234e8f;
+  --est-bg: #faedd6;
+  --est-fg: #82540e;
+  --grid: #cbc8d6;
+  --grid-strong: #b2adc4;
+  --shadow: 0 10px 30px rgba(28, 26, 38, 0.14);
+  --font-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14131a;
+    --scene: #1a1922;
+    --surface: #1f1d28;
+    --surface-2: #292733;
+    --fg: #ecebf3;
+    --muted: #a29fb3;
+    --line: #363343;
+    --accent: #a895ff;
+    --accent-ink: #17141f;
+    --accent-soft: #2c2741;
+    --ok-bg: #1d3325;
+    --ok-fg: #8fd6a5;
+    --calc-bg: #1d2a42;
+    --calc-fg: #9dbcf2;
+    --est-bg: #3a2c15;
+    --est-fg: #f0c47a;
+    --grid: #2d2b37;
+    --grid-strong: #3e3b4b;
+    --shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #14131a;
+  --scene: #1a1922;
+  --surface: #1f1d28;
+  --surface-2: #292733;
+  --fg: #ecebf3;
+  --muted: #a29fb3;
+  --line: #363343;
+  --accent: #a895ff;
+  --accent-ink: #17141f;
+  --accent-soft: #2c2741;
+  --ok-bg: #1d3325;
+  --ok-fg: #8fd6a5;
+  --calc-bg: #1d2a42;
+  --calc-fg: #9dbcf2;
+  --est-bg: #3a2c15;
+  --est-fg: #f0c47a;
+  --grid: #2d2b37;
+  --grid-strong: #3e3b4b;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  color-scheme: dark;
+}
+
+html, body { height: 100%; }
+[hidden] { display: none !important; }
+body {
+  margin: 0;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--fg);
+  font: 14px/1.45 var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+}
+
+#scene {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+  cursor: grab;
+  outline: none;
+  background: var(--scene);
+}
+#scene.dragging { cursor: grabbing; }
+#scene.over-door { cursor: pointer; }
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-bottom, 0px));
+}
+
+.panel {
+  pointer-events: auto;
+  width: min(348px, 100%);
+  max-height: calc(100% - 64px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+.panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 14px 12px 16px;
+}
+.panel-head h1 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+.panel-head .sub {
+  margin: 2px 0 0;
+  font: 400 12px/1.4 var(--font-mono);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.icon-btn {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--fg);
+  cursor: pointer;
+  font: 600 15px/1 var(--font-ui);
+}
+.icon-btn svg { width: 14px; height: 14px; transition: transform .2s ease; }
+.panel.collapsed .icon-btn svg { transform: rotate(180deg); }
+
+.panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 0 16px 16px;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.btn {
+  font: 500 13px/1 var(--font-ui);
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--fg);
+  cursor: pointer;
+}
+.btn:hover { border-color: var(--accent); }
+.btn.primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: transparent;
+}
+.btn:focus-visible, .icon-btn:focus-visible, .room-btn:focus-visible, .toggle input:focus-visible + span, summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+}
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  cursor: pointer;
+  user-select: none;
+}
+.toggle input { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; }
+
+.section-label {
+  margin: 0 0 4px;
+  font: 500 11px/1.2 var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.rooms {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.rooms td {
+  padding: 6px 0;
+  border-top: 1px solid var(--line);
+  vertical-align: middle;
+}
+.rooms td + td { padding-left: 8px; }
+.rooms .dim, .rooms .m2 {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.rooms .m2 { text-align: right; }
+.rooms tfoot td { font-weight: 600; color: var(--fg); }
+.room-btn {
+  font: inherit;
+  font-weight: 500;
+  color: var(--fg);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  border-radius: 4px;
+}
+.room-btn:hover { color: var(--accent); }
+.chip {
+  display: inline-block;
+  font: 500 10px/1 var(--font-mono);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 4px 6px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.chip.ok { background: var(--ok-bg); color: var(--ok-fg); }
+.chip.calc { background: var(--calc-bg); color: var(--calc-fg); }
+.chip.est { background: var(--est-bg); color: var(--est-fg); }
+
+details {
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+summary {
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 13px;
+  border-radius: 4px;
+}
+details ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+details li b { color: var(--fg); font-weight: 500; }
+.num { font-family: var(--font-mono); font-size: 12px; font-variant-numeric: tabular-nums; }
+
+.hint {
+  pointer-events: none;
+  align-self: center;
+  max-width: 100%;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  font-size: 12.5px;
+  color: var(--muted);
+  text-align: center;
+  text-wrap: balance;
+}
+.hint b { color: var(--fg); font-weight: 500; }
+.hint.error { color: var(--est-fg); background: var(--est-bg); }
+
+@media (max-width: 560px) {
+  .panel { width: 100%; max-height: 58%; }
+  .panel-head { padding: 12px 12px 10px 14px; }
+  .panel-body { padding: 0 14px 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .icon-btn svg { transition: none; }
+}
+</style>
+</head>
+<body>
+<canvas id="scene" tabindex="0" aria-label="Dairenin 3 boyutlu modeli. Sürükleyerek döndürün, kapılara tıklayarak açıp kapatın."></canvas>
+
+<div class="overlay">
+  <aside class="panel" id="panel">
+    <div class="panel-head">
+      <div>
+        <h1>Daire 3D Modeli</h1>
+        <p class="sub" id="summary">2+1 · çift cephe</p>
+      </div>
+      <button class="icon-btn" id="collapse" type="button" aria-expanded="true" aria-controls="panelBody" title="Paneli daralt">
+        <svg viewBox="0 0 14 14" aria-hidden="true"><path d="M3 9l4-4 4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+    <div class="panel-body" id="panelBody">
+      <div class="actions">
+        <button class="btn primary" id="btnDoors" type="button">Kapıları aç</button>
+        <button class="btn" id="btnTop" type="button">Üstten bak</button>
+        <button class="btn" id="btnReset" type="button">Sıfırla</button>
+      </div>
+      <div class="toggles">
+        <label class="toggle"><input type="checkbox" id="tLabels" checked><span>Etiketler</span></label>
+        <label class="toggle"><input type="checkbox" id="tFurniture" checked><span>Mobilya</span></label>
+      </div>
+      <div>
+        <p class="section-label">Odalar · ada tıkla, kamera odaklansın</p>
+        <table class="rooms" id="roomTable"><tbody></tbody><tfoot></tfoot></table>
+      </div>
+      <details id="assumptions">
+        <summary>Hesaplar ve varsayımlar</summary>
+        <ul id="assumptionList"></ul>
+      </details>
+    </div>
+  </aside>
+  <div class="hint" id="hint"><b>Sürükle</b> döndür · <b>Tekerlek</b> yakınlaştır · <b>Kapıya tıkla</b> aç / kapat</div>
+</div>
+
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+
+/* =====================================================================
+   1) ÖLÇÜLER — hepsi cm, iç yüzden iç yüze. Sahnede 1 birim = 1 cm.
+   Buradaki sayıları değiştirmek tüm planı yeniden hesaplar.
+   ===================================================================== */
+const M = {
+  wallIn: 10,            // iç bölme duvarı kalınlığı
+  wallEx: 20,            // dış cephe / komşu duvar kalınlığı
+  height: 260,           // oda tavan yüksekliği (duvar yüksekliği)
+  corridorCeiling: 235,  // koridor yüksekliği (asma tavan)
+  doorGap: 100,          // kapı boşluğu genişliği
+  doorHeight: 215,       // kapı boşluğu yüksekliği
+  salon:    { w: 306, dTotal: 553, dLiving: 393 },   // salon + açık mutfak
+  study:    { w: 260, d: 410, topWall: 162 },        // çalışma odası
+  corridor: { shortD: 87 },                          // L'nin kısa kolu (Z)
+  bedroom:  { w: 280, d: 258, straight: 120, niche: 60, nicheDepth: 5 }, // küçük oda
+  bathroom: { d: 250 },                              // TAHMİNİ banyo derinliği
+};
+
+/* =====================================================================
+   2) YERLEŞİM — plan koordinatları (x: sağa, z: ağaçlık cepheden caddeye).
+   Orijin: salonun ağaçlık cephe tarafındaki sol iç köşesi.
+   ===================================================================== */
+const ti = M.wallIn, te = M.wallEx, H = M.height;
+const L = (() => {
+  const o = {};
+  o.salon = { x0: 0, x1: M.salon.w, z0: 0, z1: M.salon.dTotal };
+  o.kitchenZ = M.salon.dLiving;                                       // ada tezgah hattı
+  o.mid = { x0: o.salon.x1, x1: o.salon.x1 + ti };                    // salon | çalışma ortak duvarı
+  o.study = { x0: o.mid.x1, x1: o.mid.x1 + M.study.w, z0: M.salon.dTotal - M.study.d, z1: M.salon.dTotal };
+  o.right = o.study.x1;                                               // sağ (komşu) duvarın iç yüzü
+  o.top = { z0: M.salon.dTotal, z1: M.salon.dTotal + ti };            // salon/çalışma arka duvarı
+  o.salonDoor = { x0: o.salon.x1 - M.doorGap, x1: o.salon.x1 };       // mutfak tarafı kapı boşluğu
+  o.studyDoor = { x0: o.study.x0, x1: o.study.x1 - M.study.topWall }; // 260 − 162 = 98
+  o.balcony = { x0: o.study.x0, x1: o.study.x1, z0: -te, z1: o.study.z0 - ti };
+  o.corrS = { x0: o.salonDoor.x0 - ti, x1: o.studyDoor.x1, z0: o.top.z1, z1: o.top.z1 + M.corridor.shortD };
+  o.bed = { x0: o.right - M.bedroom.w, x1: o.right };
+  o.bath = { x0: o.studyDoor.x1 + ti, x1: o.right, z0: o.top.z1, z1: o.top.z1 + M.bathroom.d };
+  o.corrL = { x0: o.bed.x0, x1: o.studyDoor.x1, z0: o.corrS.z1, z1: o.bath.z1 };
+  o.bedWall = { z0: o.bath.z1, z1: o.bath.z1 + ti };
+  o.bed.z0 = o.bedWall.z1;
+  o.bed.z1 = o.bed.z0 + M.bedroom.d;
+  o.bedDoor = { x0: o.bed.x0, x1: o.bed.x1 - (M.bedroom.straight + M.bedroom.niche) };
+  o.bathDoor = { z0: o.bath.z0 + 55, z1: o.bath.z0 + 55 + M.doorGap };
+  o.entry = { z0: o.bedWall.z0 - 10 - M.doorGap, z1: o.bedWall.z0 - 10 };   // çelik kapı
+  o.balconyDoor = { z0: 15, z1: 15 + M.doorGap };
+  o.outer = { x0: -te, x1: o.right + te, z0: -te, z1: o.bed.z1 + te };
+  return o;
+})();
+
+/* =====================================================================
+   3) SAHNE
+   ===================================================================== */
+const canvas = document.getElementById('scene');
+const hintEl = document.getElementById('hint');
+const panelEl = document.getElementById('panel');
+
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+} catch (err) {
+  hintEl.textContent = 'Bu tarayıcıda WebGL açılamadı; 3B model gösterilemiyor.';
+  hintEl.classList.add('error');
+  throw err;
+}
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+const maxAniso = renderer.capabilities.getMaxAnisotropy();
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(38, 1, 10, 40000);
+
+const structure = new THREE.Group();
+const doorsGroup = new THREE.Group();
+const furniture = new THREE.Group();
+const labels = new THREE.Group();
+scene.add(structure, doorsGroup, furniture, labels);
+
+const blockers = [];        // tıklamayı kapatan opak yüzeyler
+const furnitureMeshes = [];
+const doorParts = [];       // tıklanabilir kapı parçaları
+const doors = [];
+
+/* ---------- Malzemeler ---------- */
+const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.85, metalness: 0, ...o });
+const mat = {
+  wall: std('#f3f1ec', { roughness: 0.95 }),
+  cap: std('#3b3943', { roughness: 0.9 }),
+  threshold: std('#e3dfd7', { roughness: 0.45 }),
+  slab: std('#a6a3ad', { roughness: 1 }),
+  landing: std('#cdc8be', { roughness: 0.9 }),
+  glass: new THREE.MeshStandardMaterial({
+    color: '#a7cfe2', transparent: true, opacity: 0.24, roughness: 0.05, metalness: 0.2,
+    depthWrite: false, side: THREE.DoubleSide,
+  }),
+  alu: std('#3a3d46', { roughness: 0.45, metalness: 0.5 }),
+  pvc: std('#f5f5f3', { roughness: 0.6 }),
+  doorWood: std('#d3b58d', { roughness: 0.7 }),
+  doorFrame: std('#bf9d74', { roughness: 0.7 }),
+  steel: std('#4b4243', { roughness: 0.55, metalness: 0.35 }),
+  steelPanel: std('#5d5253', { roughness: 0.5, metalness: 0.35 }),
+  steelFrame: std('#332d2e', { roughness: 0.6, metalness: 0.3 }),
+  handle: std('#c9ccd2', { roughness: 0.3, metalness: 0.85 }),
+  fabric: std('#6f7d94'),
+  fabric2: std('#a3adbb'),
+  rug: std('#cbbda9', { roughness: 1 }),
+  rug2: std('#b5c0c6', { roughness: 1 }),
+  wood: std('#a87b53', { roughness: 0.6 }),
+  woodDark: std('#6e4c33', { roughness: 0.6 }),
+  woodLight: std('#d8bf98', { roughness: 0.65 }),
+  white: std('#f3f2ee', { roughness: 0.55 }),
+  black: std('#26252b', { roughness: 0.5 }),
+  appliance: std('#b9bdc4', { roughness: 0.35, metalness: 0.6 }),
+  stone: std('#ebe8e2', { roughness: 0.35 }),
+  bedding: std('#efebe4'),
+  blanket: std('#8496b0'),
+  plant: std('#5d8a4f'),
+  terracotta: std('#b4643f'),
+  mirror: std('#cfe0e8', { roughness: 0.05, metalness: 0.9 }),
+};
+const wallMats = [mat.wall, mat.wall, mat.cap, mat.wall, mat.wall, mat.wall];
+
+/* ---------- Yer döşemesi dokuları (canvas ile üretilir) ---------- */
+function rng(seed) { return () => (seed = (seed * 16807) % 2147483647) / 2147483647; }
+function canvasTexture(draw, size = 512) {
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  draw(c.getContext('2d'), size);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.anisotropy = maxAniso;
+  return t;
+}
+// Lamine parke: doku 160 × 160 cm, 20 cm genişlikte 8 sıra
+const texParquet = canvasTexture((g, S) => {
+  const r = rng(11), rows = 8, rh = S / rows;
+  for (let i = 0; i < rows; i++) {
+    const y = i * rh;
+    let x = r() * S, used = 0;
+    while (used < S - 1) {
+      const len = Math.min(S * (0.32 + r() * 0.34), S - used);
+      const l = 60 + r() * 9, hu = 31 + r() * 6, sa = 36 + r() * 12;
+      g.fillStyle = `hsl(${hu} ${sa}% ${l}%)`;
+      const xs = ((x % S) + S) % S;
+      g.fillRect(xs, y, len, rh);
+      if (xs + len > S) g.fillRect(xs - S, y, len, rh);
+      g.strokeStyle = 'rgba(95,62,32,0.10)';
+      g.lineWidth = 1;
+      for (let k = 0; k < 4; k++) {
+        const gy = y + 4 + r() * (rh - 8);
+        g.beginPath(); g.moveTo(xs, gy); g.lineTo(xs + len, gy + (r() - 0.5) * 3); g.stroke();
+      }
+      g.fillStyle = 'rgba(70,45,25,0.35)';
+      g.fillRect(xs, y, 1.5, rh);
+      if (xs + 1.5 > S) g.fillRect(xs - S, y, 1.5, rh);
+      x += len; used += len;
+    }
+    g.fillStyle = 'rgba(70,45,25,0.30)';
+    g.fillRect(0, y, S, 1.5);
+  }
+});
+function tileTexture(n, hue, sat, light, grout, seed) {
+  return canvasTexture((g, S) => {
+    const r = rng(seed), s = S / n, gw = Math.max(2, S / 200);
+    g.fillStyle = grout;
+    g.fillRect(0, 0, S, S);
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+      g.fillStyle = `hsl(${hue} ${sat}% ${light + (r() - 0.5) * 3}%)`;
+      g.fillRect(i * s + gw / 2, j * s + gw / 2, s - gw, s - gw);
+    }
+  });
+}
+const texTile = tileTexture(2, 40, 8, 84, '#b9b4ab', 3);   // 60×60 seramik (doku 120 cm)
+const texBath = tileTexture(4, 200, 10, 90, '#c3c9cc', 5); // 30×30 banyo (doku 120 cm)
+// Balkon deck: 14 cm tahtalar (doku 112 cm)
+const texDeck = canvasTexture((g, S) => {
+  const r = rng(17), n = 8, h = S / n;
+  g.fillStyle = '#5a4130';
+  g.fillRect(0, 0, S, S);
+  for (let i = 0; i < n; i++) {
+    let x = r() * S, used = 0;
+    while (used < S - 1) {
+      const len = Math.min(S * (0.45 + r() * 0.4), S - used);
+      g.fillStyle = `hsl(${24 + r() * 6} ${34 + r() * 10}% ${40 + r() * 8}%)`;
+      const xs = ((x % S) + S) % S;
+      g.fillRect(xs + 1, i * h + 2, len - 2, h - 4);
+      if (xs + len > S) g.fillRect(xs - S + 1, i * h + 2, len - 2, h - 4);
+      x += len; used += len;
+    }
+  }
+});
+
+/* ---------- Yardımcılar ---------- */
+// Plan koordinatı (x, z) → dünya (x, -z). Sahne birimleri cm.
+function boxMesh(x0, x1, z0, z1, y0, y1, material, parent = structure, { cast = true, receive = true } = {}) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, y1 - y0, z1 - z0), material);
+  m.position.set((x0 + x1) / 2, (y0 + y1) / 2, -(z0 + z1) / 2);
+  m.castShadow = cast;
+  m.receiveShadow = receive;
+  parent.add(m);
+  return m;
+}
+
+// Duvar: eksen boyunca açıklıklar (kapı/cam) kesilerek parçalara ayrılır.
+// Açıklığın üstündeki lento, anahtarıyla saklanır; kapı tıklama alanına eklenir.
+const lintels = new Map();
+function wall(x0, x1, z0, z1, openings = []) {
+  const alongX = (x1 - x0) >= (z1 - z0);
+  const [a0, a1] = alongX ? [x0, x1] : [z0, z1];
+  const piece = (s0, s1, y0, y1, m = wallMats) => {
+    if (s1 - s0 < 0.5 || y1 - y0 < 0.5) return null;
+    const mesh = alongX ? boxMesh(s0, s1, z0, z1, y0, y1, m) : boxMesh(x0, x1, s0, s1, y0, y1, m);
+    blockers.push(mesh);
+    return mesh;
+  };
+  let cur = a0;
+  for (const o of [...openings].sort((p, q) => p.a0 - q.a0)) {
+    piece(cur, o.a0, 0, H);
+    piece(o.a0, o.a1, 0, o.y0 || 0);
+    const lin = piece(o.a0, o.a1, o.y1, H);
+    if (o.key && lin) lintels.set(o.key, lin);
+    if (!o.y0) piece(o.a0, o.a1, 0, 1.2, mat.threshold); // eşik / denizlik
+    cur = o.a1;
+  }
+  piece(cur, a1, 0, H);
+}
+
+function floor(x0, x1, z0, z1, tex, texSize) {
+  const w = x1 - x0, d = z1 - z0;
+  const g = new THREE.PlaneGeometry(w, d);
+  g.rotateX(-Math.PI / 2);
+  const uv = g.attributes.uv;
+  for (let i = 0; i < uv.count; i++) {
+    uv.setXY(i, (x0 + uv.getX(i) * w) / texSize, (z0 + uv.getY(i) * d) / texSize);
+  }
+  const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: tex, roughness: 0.75 }));
+  m.position.set((x0 + x1) / 2, 0.6, -(z0 + z1) / 2);
+  m.receiveShadow = true;
+  structure.add(m);
+  blockers.push(m);
+}
+
+function F(x0, x1, z0, z1, y0, y1, m) {
+  const mesh = boxMesh(x0, x1, z0, z1, y0, y1, m, furniture);
+  furnitureMeshes.push(mesh);
+  return mesh;
+}
+function cyl(x, z, r, y0, y1, m, seg = 28) {
+  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(r, r, y1 - y0, seg), m);
+  mesh.position.set(x, (y0 + y1) / 2, -z);
+  mesh.castShadow = mesh.receiveShadow = true;
+  furniture.add(mesh);
+  furnitureMeshes.push(mesh);
+  return mesh;
+}
+function ball(x, z, r, y, m) {
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(r, 24, 16), m);
+  mesh.position.set(x, y, -z);
+  mesh.castShadow = mesh.receiveShadow = true;
+  furniture.add(mesh);
+  furnitureMeshes.push(mesh);
+  return mesh;
+}
+// Yerel koordinatta kutu (kapı kanadı parçaları için)
+function lbox(parent, x0, x1, y0, y1, z0, z1, m, cast = true) {
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, y1 - y0, z1 - z0), m);
+  mesh.position.set((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);
+  mesh.castShadow = cast;
+  mesh.receiveShadow = true;
+  parent.add(mesh);
+  return mesh;
+}
+function registerDoor(door, root, extras = [], key) {
+  root.traverse(o => { if (o.isMesh) { o.userData.door = door; doorParts.push(o); } });
+  // kasa ve lento da tıklanabilir: kanat duvarın arkasında kalsa bile kapı seçilebilsin
+  for (const m of extras) m.userData.door = door;
+  if (key && lintels.has(key)) lintels.get(key).userData.door = door;
+  if (!doors.includes(door)) doors.push(door);
+}
+
+/* ---------- Menteşeli kapı ----------
+   axis: duvarın uzandığı eksen ('x' | 'z'); c: duvar ekseninin plan koordinatı;
+   a0..a1: boşluk; hinge: menteşe ucu; swing: kanadın açıldığı taraf (+1 / −1).
+   Kapalıyken boşluğu kapatır, açılınca 90° dönüp dik duvara paralel durur. */
+function hingedDoor({ name, key, axis, c, t, a0, a1, hinge = 'a0', swing, kind = 'wood', oh = M.doorHeight }) {
+  const jamb = kind === 'steel' ? 7 : kind === 'pvc' ? 6 : 5;
+  const lt = kind === 'steel' ? 6 : kind === 'pvc' ? 7 : 4;
+  const leafW = (a1 - a0) - 2 * jamb;
+  const leafH = oh - 6 - 1.5;
+  const fd = t + 2;
+  const frameMat = (kind === 'steel' ? mat.steelFrame : kind === 'pvc' ? mat.pvc : mat.doorFrame).clone();
+  const P = (a, off) => (axis === 'x' ? [a, c + off] : [c + off, a]);
+  const frames = [];
+  const fr = (s0, s1, y0, y1) => {
+    const mesh = axis === 'x'
+      ? boxMesh(s0, s1, c - fd / 2, c + fd / 2, y0, y1, frameMat, doorsGroup)
+      : boxMesh(c - fd / 2, c + fd / 2, s0, s1, y0, y1, frameMat, doorsGroup);
+    blockers.push(mesh);
+    frames.push(mesh);
+  };
+  fr(a0, a0 + jamb, 0, oh);
+  fr(a1 - jamb, a1, 0, oh);
+  fr(a0, a1, oh - 6, oh);
+
+  const dir = hinge === 'a0' ? 1 : -1;
+  const ha = hinge === 'a0' ? a0 : a1;
+  const [px, pz] = P(ha + dir * jamb, swing * (t / 2 - lt / 2));
+  const n = axis === 'x' ? [0, swing] : [swing, 0];
+  const u = axis === 'x' ? [dir, 0] : [0, dir];
+  const thetaC = Math.atan2(u[1], u[0]);
+  let thetaO = thetaC + Math.PI / 2;
+  if (Math.cos(thetaO) * n[0] + Math.sin(thetaO) * n[1] < 0) thetaO = thetaC - Math.PI / 2;
+
+  const pivot = new THREE.Group();
+  pivot.position.set(px, 0, -pz);
+  pivot.rotation.y = thetaC;
+  doorsGroup.add(pivot);
+
+  const door = { name, kind: 'hinge', pivot, thetaC, thetaO, p: 0, target: 0, mats: [frameMat] };
+  const y0 = 1.5, y1 = y0 + leafH;
+
+  if (kind === 'pvc') {
+    const pm = mat.pvc.clone(), gm = mat.glass.clone();
+    door.mats.push(pm);
+    const fw = 8;
+    lbox(pivot, 0, fw, y0, y1, -lt / 2, lt / 2, pm);
+    lbox(pivot, leafW - fw, leafW, y0, y1, -lt / 2, lt / 2, pm);
+    lbox(pivot, fw, leafW - fw, y0, y0 + 12, -lt / 2, lt / 2, pm);
+    lbox(pivot, fw, leafW - fw, y1 - fw, y1, -lt / 2, lt / 2, pm);
+    lbox(pivot, fw, leafW - fw, y0 + 12, y1 - fw, -0.6, 0.6, gm, false);
+  } else {
+    const lm = (kind === 'steel' ? mat.steel : mat.doorWood).clone();
+    door.mats.push(lm);
+    lbox(pivot, 0, leafW, y0, y1, -lt / 2, lt / 2, lm);
+    if (kind === 'steel') {
+      const pm = mat.steelPanel.clone();
+      door.mats.push(pm);
+      for (const s of [-1, 1]) {
+        const zf = s * (lt / 2 + 0.4);
+        lbox(pivot, 12, leafW - 12, y0 + 14, y0 + leafH * 0.42, zf - 0.4, zf + 0.4, pm);
+        lbox(pivot, 12, leafW - 12, y0 + leafH * 0.5, y1 - 14, zf - 0.4, zf + 0.4, pm);
+      }
+      const eye = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, lt + 2, 12), mat.handle);
+      eye.rotation.x = Math.PI / 2;
+      eye.position.set(leafW / 2, 152, 0);
+      pivot.add(eye);
+    }
+  }
+  // kollar (iki yüzde)
+  const hx = leafW - 7;
+  for (const s of [-1, 1]) {
+    const zf = s * (lt / 2);
+    const rose = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 2.6, 1.2, 20), mat.handle);
+    rose.rotation.x = Math.PI / 2;
+    rose.position.set(hx, 102, zf + s * 0.6);
+    pivot.add(rose);
+    lbox(pivot, hx - 0.8, hx + 0.8, 101.2, 102.8, zf, zf + s * 5, mat.handle);
+    lbox(pivot, hx - 13, hx + 0.8, 101.2, 102.8, zf + s * 4, zf + s * 5.6, mat.handle);
+  }
+  registerDoor(door, pivot, frames, key);
+  return door;
+}
+
+/* ---------- Sürgülü cam kapı (iki kanat, biri kayar) ---------- */
+function slidingDoor({ name, key, c, a0, a1, oh }) {
+  const j = 5, dep = 9;
+  const A = (parent, s0, s1, y0, y1, d0, d1, m, cast = true) =>
+    boxMesh(s0, s1, c + d0, c + d1, y0, y1, m, parent, { cast });
+  const frames = [
+    A(structure, a0, a0 + j, 0, oh, -dep / 2, dep / 2, mat.alu),
+    A(structure, a1 - j, a1, 0, oh, -dep / 2, dep / 2, mat.alu),
+    A(structure, a0, a1, oh - 6, oh, -dep / 2, dep / 2, mat.alu),
+    A(structure, a0, a1, 1.2, 3, -dep / 2, dep / 2, mat.alu),
+  ];
+  blockers.push(...frames);
+
+  const i0 = a0 + j, i1 = a1 - j, ov = 8, pw = (i1 - i0 + ov) / 2;
+  const y0 = 3, y1 = oh - 6, fw = 5;
+  const fm = mat.alu.clone(), gm = mat.glass.clone();
+  const fixed = new THREE.Group(), moving = new THREE.Group();
+  doorsGroup.add(fixed, moving);
+  const panel = (g, s0, s1, d) => {
+    A(g, s0, s0 + fw, y0, y1, d - 2, d + 2, fm);
+    A(g, s1 - fw, s1, y0, y1, d - 2, d + 2, fm);
+    A(g, s0, s1, y0, y0 + fw, d - 2, d + 2, fm);
+    A(g, s0, s1, y1 - fw, y1, d - 2, d + 2, fm);
+    A(g, s0 + fw, s1 - fw, y0 + fw, y1 - fw, d - 0.5, d + 0.5, gm, false);
+  };
+  panel(fixed, i1 - pw, i1, 2.4);
+  panel(moving, i0, i0 + pw, -2.4);
+  A(moving, i0 + pw - 9, i0 + pw - 7, 90, 120, -5, 0.5, mat.handle);
+  const door = { name, kind: 'slide', group: moving, travel: pw - ov, along: new THREE.Vector3(1, 0, 0), p: 0, target: 0, mats: [fm] };
+  registerDoor(door, fixed, frames, key);
+  registerDoor(door, moving);
+  return door;
+}
+
+/* ---------- Sabit boydan cam ---------- */
+function glazing({ c, a0, a1, y0, y1, panes }) {
+  const fw = 6, dep = 6;
+  const A = (s0, s1, yy0, yy1, d0, d1, m, cast = true) => boxMesh(s0, s1, c + d0, c + d1, yy0, yy1, m, structure, { cast });
+  blockers.push(
+    A(a0, a0 + fw, y0, y1, -dep / 2, dep / 2, mat.alu),
+    A(a1 - fw, a1, y0, y1, -dep / 2, dep / 2, mat.alu),
+    A(a0, a1, y0, y0 + fw, -dep / 2, dep / 2, mat.alu),
+    A(a0, a1, y1 - fw, y1, -dep / 2, dep / 2, mat.alu),
+  );
+  const step = (a1 - a0) / panes;
+  for (let i = 1; i < panes; i++) {
+    const m = a0 + i * step;
+    blockers.push(A(m - 3, m + 3, y0, y1, -dep / 2, dep / 2, mat.alu));
+  }
+  A(a0 + fw, a1 - fw, y0 + fw, y1 - fw, -0.6, 0.6, mat.glass, false);
+}
+
+/* ---------- Balkon korkuluğu ---------- */
+function railing(x0, x1, zc, h = 105) {
+  const count = Math.ceil((x1 - x0) / 130);
+  for (let i = 0; i <= count; i++) {
+    const x = x0 + 2 + (x1 - x0 - 4) * (i / count);
+    blockers.push(boxMesh(x - 2, x + 2, zc - 2, zc + 2, 0, h, mat.alu));
+  }
+  blockers.push(boxMesh(x0, x1, zc - 3, zc + 3, h - 4, h, mat.alu));
+  blockers.push(boxMesh(x0, x1, zc - 1.5, zc + 1.5, 6, 10, mat.alu));
+  boxMesh(x0, x1, zc - 0.6, zc + 0.6, 10, h - 4, mat.glass, structure, { cast: false });
+}
+
+/* =====================================================================
+   4) MODEL
+   ===================================================================== */
+// Kat döşemesi (dairenin dış hattı)
+{
+  const pts = [
+    [L.outer.x0, L.outer.z0], [L.outer.x1, L.outer.z0], [L.outer.x1, L.outer.z1],
+    [L.corrL.x0 - te, L.outer.z1], [L.corrL.x0 - te, L.corrS.z1 + te],
+    [L.corrS.x0 - te, L.corrS.z1 + te], [L.corrS.x0 - te, L.top.z0 + te], [L.outer.x0, L.top.z0 + te],
+  ];
+  const shape = new THREE.Shape(pts.map(([x, z]) => new THREE.Vector2(x, z)));
+  const g = new THREE.ExtrudeGeometry(shape, { depth: 20, bevelEnabled: false });
+  g.rotateX(-Math.PI / 2);
+  g.translate(0, -20, 0);
+  const slab = new THREE.Mesh(g, mat.slab);
+  slab.receiveShadow = true;
+  slab.castShadow = true;
+  structure.add(slab);
+  // Bina holü (giriş sahanlığı, yalnızca bağlam için)
+  boxMesh(L.corrL.x0 - te - 130, L.corrL.x0 - te, L.corrS.z1 + te, L.entry.z1 + 50, -20, -0.5, mat.landing);
+}
+
+// Zeminler
+floor(0, L.salon.x1, 0, L.kitchenZ, texParquet, 160);                       // salon
+floor(0, L.salon.x1, L.kitchenZ, L.salon.z1, texTile, 120);                 // açık mutfak
+floor(L.study.x0, L.study.x1, L.study.z0, L.study.z1, texParquet, 160);     // çalışma
+floor(L.balcony.x0, L.balcony.x1, L.balcony.z0, L.balcony.z1, texDeck, 112); // balkon
+floor(L.corrS.x0, L.corrS.x1, L.corrS.z0, L.corrS.z1, texTile, 120);        // koridor kısa kol
+floor(L.corrL.x0, L.corrL.x1, L.corrL.z0, L.corrL.z1, texTile, 120);        // koridor uzun kol
+floor(L.bath.x0, L.bath.x1, L.bath.z0, L.bath.z1, texBath, 120);            // banyo
+floor(L.bed.x0, L.bed.x1, L.bed.z0, L.bed.z1, texParquet, 160);             // yatak odası
+
+// Dış / komşu duvarlar
+wall(-te, 0, -te, L.top.z0 + te);                                            // salon sol duvarı
+wall(0, L.corrS.x0, L.top.z0, L.top.z0 + te);                                // mutfak arka duvarı
+wall(L.corrS.x0 - te, L.corrS.x0, L.top.z0 + te, L.corrS.z1);                // koridor kısa kol ucu
+wall(L.corrS.x0 - te, L.corrL.x0 - te, L.corrS.z1, L.corrS.z1 + te);         // kısa kol üst duvarı
+wall(L.corrL.x0 - te, L.corrL.x0, L.corrS.z1, L.outer.z1,
+  [{ a0: L.entry.z0, a1: L.entry.z1, y1: M.doorHeight, key: 'entry' }]);     // giriş (çelik kapı) duvarı
+wall(L.right, L.outer.x1, -te, L.outer.z1);                                  // sağ komşu duvar
+wall(0, L.salon.x1, -te, 0, [{ a0: 0, a1: L.salon.x1, y1: 250 }]);           // salon boydan cam cephesi
+wall(L.bed.x0, L.right, L.bed.z1, L.outer.z1, [{ a0: L.bed.x0, a1: L.right, y1: 245, key: 'bedSlide' }]); // cadde cephesi
+blockers.push(boxMesh(L.study.x0, L.right, -te, 0, 240, H, wallMats));       // balkon kirişi
+
+// İç duvarlar
+wall(L.mid.x0, L.mid.x1, -te, L.top.z1,
+  [{ a0: L.balconyDoor.z0, a1: L.balconyDoor.z1, y1: 220, key: 'balcony' }]); // salon | çalışma + balkon kapısı
+wall(L.corrS.x0, L.mid.x0, L.top.z0, L.top.z1,
+  [{ a0: L.salonDoor.x0, a1: L.salonDoor.x1, y1: M.doorHeight }]);           // salon → koridor (kapısız)
+wall(L.study.x0, L.right, L.top.z0, L.top.z1,
+  [{ a0: L.studyDoor.x0, a1: L.studyDoor.x1, y1: M.doorHeight, key: 'study' }]); // çalışma → koridor
+wall(L.corrL.x1, L.bath.x0, L.top.z1, L.bath.z1,
+  [{ a0: L.bathDoor.z0, a1: L.bathDoor.z1, y1: M.doorHeight, key: 'bath' }]); // koridor | banyo
+wall(L.bed.x0, L.right, L.bedWall.z0, L.bedWall.z1,
+  [{ a0: L.bedDoor.x0, a1: L.bedDoor.x1, y1: M.doorHeight, key: 'bed' }]);   // banyo | yatak odası
+wall(L.right - M.bedroom.niche, L.right, L.bedWall.z1, L.bedWall.z1 + M.bedroom.nicheDepth); // 5 cm çıkıntı
+wall(L.study.x0, L.right, L.study.z0 - ti, L.study.z0,
+  [{ a0: L.study.x0, a1: L.right, y1: 240, key: 'studySlide' }]);           // çalışma | balkon (sürgü)
+
+// Camlar ve korkuluk
+glazing({ c: -te / 2, a0: 0, a1: L.salon.x1, y0: 1.2, y1: 250, panes: 3 });
+railing(L.balcony.x0, L.balcony.x1, -te + 4);
+
+// Kapılar
+hingedDoor({ name: 'Çalışma odası', key: 'study', axis: 'x', c: L.top.z0 + ti / 2, t: ti,
+  a0: L.studyDoor.x0, a1: L.studyDoor.x1, hinge: 'a0', swing: -1 });
+hingedDoor({ name: 'Banyo', key: 'bath', axis: 'z', c: L.corrL.x1 + ti / 2, t: ti,
+  a0: L.bathDoor.z0, a1: L.bathDoor.z1, hinge: 'a0', swing: 1 });
+hingedDoor({ name: 'Yatak odası', key: 'bed', axis: 'x', c: L.bedWall.z0 + ti / 2, t: ti,
+  a0: L.bedDoor.x0, a1: L.bedDoor.x1, hinge: 'a0', swing: 1 });
+hingedDoor({ name: 'Çelik kapı', key: 'entry', axis: 'z', c: L.corrL.x0 - te / 2, t: te,
+  a0: L.entry.z0, a1: L.entry.z1, hinge: 'a0', swing: 1, kind: 'steel' });
+hingedDoor({ name: 'Balkon kapısı', key: 'balcony', axis: 'z', c: L.mid.x0 + ti / 2, t: ti,
+  a0: L.balconyDoor.z0, a1: L.balconyDoor.z1, hinge: 'a0', swing: -1, kind: 'pvc', oh: 220 });
+slidingDoor({ name: 'Balkon sürgüsü', key: 'studySlide', c: L.study.z0 - ti / 2, a0: L.study.x0, a1: L.right, oh: 240 });
+slidingDoor({ name: 'Cadde cephesi sürgüsü', key: 'bedSlide', c: L.bed.z1 + te / 2, a0: L.bed.x0, a1: L.right, oh: 245 });
+
+/* ---------- Mobilya (temsili) ---------- */
+// Salon
+F(95, 245, 140, 320, 0.6, 1.6, mat.rug);
+F(0, 92, 135, 335, 8, 42, mat.fabric);
+F(0, 22, 135, 335, 42, 82, mat.fabric);
+F(22, 92, 135, 153, 42, 60, mat.fabric);
+F(22, 92, 317, 335, 42, 60, mat.fabric);
+F(24, 88, 155, 234, 42, 50, mat.fabric2);
+F(24, 88, 236, 315, 42, 50, mat.fabric2);
+F(130, 200, 195, 285, 34, 40, mat.wood);
+F(136, 194, 201, 279, 0, 34, mat.woodDark);
+F(262, 306, 165, 335, 8, 50, mat.white);
+F(300, 304, 195, 305, 85, 152, mat.black);
+F(22, 97, 40, 112, 8, 42, mat.fabric2);
+F(22, 36, 40, 112, 42, 80, mat.fabric2);
+cyl(288, 128, 13, 0, 36, mat.terracotta);
+ball(288, 128, 24, 64, mat.plant);
+// Açık mutfak
+F(0, 135, 493, 553, 0, 86, mat.white);
+F(0, 137, 490, 553, 86, 90, mat.stone);
+F(72, 122, 503, 543, 90, 90.8, mat.black);
+F(15, 60, 505, 541, 89.6, 90.7, mat.appliance);
+F(0, 135, 520, 553, 150, 222, mat.white);
+F(137, 200, 488, 553, 0, 202, mat.appliance);
+F(30, 180, 365, 420, 0, 88, mat.woodDark);
+F(22, 188, 340, 425, 88, 92, mat.stone);
+for (const x of [70, 140]) {
+  cyl(x, 332, 2.5, 2, 62, mat.black, 12);
+  cyl(x, 332, 16, 62, 66, mat.wood);
+  cyl(x, 332, 13, 0, 2, mat.black);
+}
+// Çalışma odası
+F(400, 505, 215, 425, 0.6, 1.6, mat.rug2);
+F(516, 576, 250, 390, 72, 75, mat.woodLight);
+F(518, 574, 252, 256, 0, 72, mat.woodLight);
+F(518, 574, 384, 388, 0, 72, mat.woodLight);
+F(566, 569, 298, 342, 92, 128, mat.black);
+F(564, 572, 314, 326, 75, 92, mat.black);
+cyl(490, 320, 2.5, 0, 44, mat.black, 12);
+F(470, 510, 300, 340, 44, 50, mat.fabric);
+F(466, 471, 302, 338, 50, 92, mat.fabric);
+F(430, 570, 522, 553, 0, 200, mat.woodLight);
+F(316, 400, 180, 380, 0, 40, mat.white);
+F(320, 396, 184, 376, 40, 50, mat.fabric2);
+F(316, 332, 180, 380, 50, 82, mat.fabric2);
+// Balkon
+cyl(446, 55, 28, 70, 73, mat.white);
+cyl(446, 55, 2.5, 0, 70, mat.black, 12);
+for (const [x0, bx] of [[380, 380], [474, 508]]) {
+  F(x0, x0 + 38, 36, 74, 42, 46, mat.woodLight);
+  F(bx, bx + 4, 36, 74, 46, 85, mat.woodLight);
+  cyl(x0 + 19, 55, 2, 0, 42, mat.black, 10);
+}
+cyl(552, 108, 16, 0, 40, mat.terracotta);
+ball(552, 108, 24, 64, mat.plant);
+// Banyo
+F(486, 576, 723, 813, 0.6, 6, mat.white);
+F(485, 487, 723, 813, 6, 200, mat.glass).castShadow = false;
+F(486, 535, 722, 724, 6, 200, mat.glass).castShadow = false;
+F(558, 576, 644, 684, 0, 82, mat.white);
+F(516, 558, 648, 680, 0, 40, mat.white);
+F(514, 558, 646, 682, 40, 42, mat.white);
+F(440, 500, 563, 607, 0, 82, mat.woodLight);
+F(438, 502, 563, 609, 82, 86, mat.white);
+F(445, 495, 563, 565, 110, 175, mat.mirror);
+F(426, 486, 753, 813, 0, 85, mat.white);
+{
+  const porthole = new THREE.Mesh(new THREE.CylinderGeometry(17, 17, 1.5, 28), mat.black);
+  porthole.rotation.x = Math.PI / 2;
+  porthole.position.set(456, 45, -752.5);
+  furniture.add(porthole);
+  furnitureMeshes.push(porthole);
+}
+// Yatak odası
+F(395, 515, 829, 1028, 0, 30, mat.woodLight);
+F(398, 512, 832, 1025, 30, 50, mat.bedding);
+F(395, 515, 823, 829, 0, 100, mat.woodLight);
+F(405, 505, 836, 872, 50, 60, mat.white);
+F(396, 514, 880, 1026, 50, 54, mat.blanket);
+F(522, 568, 830, 870, 0, 50, mat.woodLight);
+cyl(545, 850, 7, 50, 76, mat.white);
+F(296, 356, 925, 1075, 0, 220, mat.white);
+F(355.5, 356.6, 999, 1001, 0, 220, mat.cap);
+// Koridor: ayakkabılık
+F(386, 414, 728, 808, 0, 100, mat.white);
+F(385, 414, 727, 809, 100, 102, mat.woodLight);
+
+/* ---------- Zemin, ızgara, ışık ---------- */
+const center = new THREE.Vector3((L.outer.x0 + L.outer.x1) / 2, 40, -(L.outer.z0 + L.outer.z1) / 2);
+
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(9000, 9000), new THREE.ShadowMaterial({ opacity: 0.16 }));
+ground.rotation.x = -Math.PI / 2;
+ground.position.set(center.x, -20.4, center.z);
+ground.receiveShadow = true;
+scene.add(ground);
+
+let grid = null;
+function buildGrid(c1, c2) {
+  if (grid) { scene.remove(grid); grid.geometry.dispose(); grid.material.dispose(); }
+  grid = new THREE.GridHelper(3000, 30, c2, c1);  // 1 m kareler
+  grid.position.set(center.x, -20.3, center.z);
+  scene.add(grid);
+}
+
+scene.add(new THREE.HemisphereLight('#ffffff', '#b9b2a6', 1.35));
+const sun = new THREE.DirectionalLight('#fff4e3', 2.1);
+sun.position.set(center.x - 650, 1500, center.z + 800);
+sun.target.position.copy(center);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -900, right: 900, top: 900, bottom: -900, near: 100, far: 4000 });
+sun.shadow.bias = -0.0004;
+sun.shadow.normalBias = 1.5;
+scene.add(sun, sun.target);
+const fill = new THREE.DirectionalLight('#dfe6ff', 0.45);
+fill.position.set(center.x + 900, 900, center.z - 900);
+scene.add(fill);
+
+/* =====================================================================
+   5) ETİKETLER
+   ===================================================================== */
+const FONT_UI = '"IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+const FONT_MONO = '"IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
+const fmt = (n, d = 1) => n.toLocaleString('tr-TR', { minimumFractionDigits: d, maximumFractionDigits: d });
+const area = (w, d) => (w * d) / 10000;
+
+const corrLen = L.corrL.z1 - L.corrL.z0;
+const corrSW = L.corrS.x1 - L.corrS.x0;
+const corrLW = L.corrL.x1 - L.corrL.x0;
+const bathW = L.bath.x1 - L.bath.x0;
+const balconyD = M.salon.dTotal - M.study.d;
+
+const ROOMS = [
+  { name: 'Salon', dims: `${M.salon.w} × ${M.salon.dLiving}`, m2: area(M.salon.w, M.salon.dLiving), st: 'ok',
+    box: [0, L.salon.x1, 0, L.kitchenZ], label: [L.salon.x1 / 2, 215] },
+  { name: 'Açık mutfak', dims: `${M.salon.w} × ${M.salon.dTotal - M.salon.dLiving}`, m2: area(M.salon.w, M.salon.dTotal - M.salon.dLiving), st: 'calc',
+    box: [0, L.salon.x1, L.kitchenZ, L.salon.z1], label: [L.salon.x1 / 2, 462] },
+  { name: 'Çalışma odası', dims: `${M.study.w} × ${M.study.d}`, m2: area(M.study.w, M.study.d), st: 'ok',
+    box: [L.study.x0, L.study.x1, L.study.z0, L.study.z1], label: [(L.study.x0 + L.study.x1) / 2, 455] },
+  { name: 'Balkon', dims: `${M.study.w} × ${balconyD}`, m2: area(M.study.w, balconyD), st: 'calc', outside: true,
+    box: [L.balcony.x0, L.balcony.x1, L.balcony.z0, L.balcony.z1], label: [(L.balcony.x0 + L.balcony.x1) / 2, 95] },
+  { name: 'Koridor', dims: `${corrSW}×${M.corridor.shortD} + ${corrLW}×${corrLen}`, m2: area(corrSW, M.corridor.shortD) + area(corrLW, corrLen), st: 'est',
+    box: [L.corrS.x0, L.corrL.x1, L.corrS.z0, L.corrL.z1], label: [(L.corrS.x0 + L.corrS.x1) / 2, (L.corrS.z0 + L.corrS.z1) / 2], sub: `L · tavan ${M.corridorCeiling}` },
+  { name: 'Banyo', dims: `${bathW} × ${M.bathroom.d}`, m2: area(bathW, M.bathroom.d), st: 'est',
+    box: [L.bath.x0, L.bath.x1, L.bath.z0, L.bath.z1], label: [(L.bath.x0 + L.bath.x1) / 2, L.bath.z1 - 60] },
+  { name: 'Yatak odası', dims: `${M.bedroom.w} × ${M.bedroom.d}`, m2: area(M.bedroom.w, M.bedroom.d), st: 'ok',
+    box: [L.bed.x0, L.bed.x1, L.bed.z0, L.bed.z1], label: [(L.bed.x0 + L.bed.x1) / 2, 960] },
+];
+const ST = { ok: 'ölçü', calc: 'hesap', est: 'tahmin' };
+
+const labelDefs = [
+  ...ROOMS.map(r => ({ title: r.name, sub: r.sub || `${r.dims} cm`, x: r.label[0], z: r.label[1], y: 140 })),
+  { title: 'Bina holü', sub: 'giriş · çelik kapı', x: L.corrL.x0 - te - 100, z: L.entry.z1 + 20, y: 20, minor: true },
+  { title: 'AĞAÇLIK ALAN CEPHESİ', x: (L.outer.x0 + L.outer.x1) / 2, z: -110, y: 0, variant: 'facade' },
+  { title: 'CADDE CEPHESİ', x: (L.bed.x0 + L.bed.x1) / 2, z: L.outer.z1 + 90, y: 0, variant: 'facade' },
+];
+const labelSprites = [];
+
+function cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+let compact = false;   // küçük ekranda yalnızca oda adları
+function drawLabel(def) {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const c = def.canvas || (def.canvas = document.createElement('canvas'));
+  const g = c.getContext('2d');
+  const facade = def.variant === 'facade';
+  const sub = compact ? '' : def.sub;
+  const tFont = facade ? `500 ${compact ? 10 : 11}px ${FONT_MONO}` : `600 ${compact ? 11.5 : 13}px ${FONT_UI}`;
+  const sFont = `400 11px ${FONT_MONO}`;
+  g.font = tFont;
+  let w = g.measureText(def.title).width + (facade ? def.title.length * 1.2 : 0);
+  if (sub) { g.font = sFont; w = Math.max(w, g.measureText(sub).width); }
+  const padX = facade ? 4 : (compact ? 7 : 10), padY = facade ? 3 : (compact ? 4 : 7);
+  const wCss = Math.ceil(w + padX * 2), hCss = Math.ceil(padY * 2 + (compact ? 14 : 16) + (sub ? 14 : 0));
+  c.width = wCss * dpr;
+  c.height = hCss * dpr;
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, wCss, hCss);
+  if (!facade) {
+    g.fillStyle = cssVar('--surface');
+    g.strokeStyle = cssVar('--line');
+    g.lineWidth = 1;
+    g.beginPath();
+    g.roundRect(0.5, 0.5, wCss - 1, hCss - 1, 6);
+    g.fill();
+    g.stroke();
+  }
+  g.textBaseline = 'top';
+  g.fillStyle = facade ? cssVar('--accent') : cssVar('--fg');
+  g.font = tFont;
+  if ('letterSpacing' in g) g.letterSpacing = facade ? '1.2px' : '0px';
+  g.fillText(def.title, padX, padY + 1);
+  if ('letterSpacing' in g) g.letterSpacing = '0px';
+  if (sub) {
+    g.font = sFont;
+    g.fillStyle = cssVar('--accent');
+    g.fillText(sub, padX, padY + 18);
+  }
+  def.wCss = wCss;
+  def.hCss = hCss;
+}
+// Boyut değişebildiği için dokuyu yeniden oluşturur
+function labelTexture(def) {
+  const tex = new THREE.CanvasTexture(def.canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+function refreshLabel(def) {
+  drawLabel(def);
+  if (!def.sprite) return;
+  const old = def.sprite.material.map;
+  def.sprite.material.map = labelTexture(def);
+  def.sprite.material.needsUpdate = true;
+  if (old) old.dispose();
+}
+
+function buildLabels() {
+  for (const def of labelDefs) {
+    drawLabel(def);
+    const onGround = def.variant === 'facade';   // cephe yazıları binanın arkasında kalınca gizlenir
+    const sm = new THREE.SpriteMaterial({ map: labelTexture(def), depthTest: onGround, depthWrite: false, sizeAttenuation: false, toneMapped: false });
+    const sp = new THREE.Sprite(sm);
+    sp.position.set(def.x, def.y, -def.z);
+    sp.renderOrder = 10;
+    sp.userData.def = def;
+    def.sprite = sp;
+    labels.add(sp);
+    labelSprites.push(sp);
+  }
+  scaleLabels();
+}
+function scaleLabels() {
+  const c = Math.min(window.innerWidth, window.innerHeight) < 600;
+  if (c !== compact) {
+    compact = c;
+    for (const def of labelDefs) if (def.sprite) refreshLabel(def);
+  }
+  for (const sp of labelSprites) sp.visible = !(compact && sp.userData.def.minor);
+  const vh = canvas.clientHeight || window.innerHeight;
+  const k = (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2)) / vh;
+  for (const sp of labelSprites) {
+    const d = sp.userData.def;
+    sp.scale.set(d.wCss * k, d.hCss * k, 1);
+  }
+}
+
+/* =====================================================================
+   6) KAMERA — merkezdeki pivot etrafında yörünge
+   ===================================================================== */
+const HOME = { yaw: -0.6, pitch: 0.95 };
+const view = { yaw: HOME.yaw, pitch: HOME.pitch, r: 1800, pivot: center.clone() };
+const goal = { yaw: HOME.yaw, pitch: HOME.pitch, r: 1800, pivot: center.clone() };
+const PITCH_MIN = 0.12, PITCH_MAX = 1.553, R_MIN = 250, R_MAX = 7000;
+let viewShift = 0;
+
+function fitRadius() {
+  const w = canvas.clientWidth - viewShift * 2, h = canvas.clientHeight;
+  const vf = THREE.MathUtils.degToRad(camera.fov);
+  const hf = 2 * Math.atan(Math.tan(vf / 2) * (Math.max(w, 200) / h));
+  return 700 / Math.sin(Math.min(vf, hf) / 2);
+}
+function resetView() {
+  goal.yaw = HOME.yaw;
+  goal.pitch = HOME.pitch;
+  goal.r = fitRadius();
+  goal.pivot.copy(center);
+}
+function topView() {
+  goal.yaw = Math.round(goal.yaw / (Math.PI * 2)) * Math.PI * 2;
+  goal.pitch = PITCH_MAX;
+  goal.r = fitRadius() * 1.02;
+  goal.pivot.copy(center);
+}
+function focusRoom(room) {
+  const [x0, x1, z0, z1] = room.box;
+  goal.pivot.set((x0 + x1) / 2, 30, -(z0 + z1) / 2);
+  goal.r = Math.min(R_MAX, Math.max(x1 - x0, z1 - z0) * 2.4 + 250);
+  goal.pitch = Math.max(goal.pitch, 0.95);
+}
+
+function updateCamera() {
+  const cp = Math.cos(view.pitch);
+  camera.position.set(
+    view.pivot.x + view.r * cp * Math.sin(view.yaw),
+    view.pivot.y + view.r * Math.sin(view.pitch),
+    view.pivot.z + view.r * cp * Math.cos(view.yaw),
+  );
+  camera.lookAt(view.pivot);
+}
+
+function resize() {
+  const w = window.innerWidth, h = window.innerHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  const panelVisible = !panelEl.classList.contains('collapsed');
+  viewShift = (w >= 860) ? Math.round((panelEl.getBoundingClientRect().right + 8) / 2) * (panelVisible ? 1 : 0.35) : 0;
+  if (viewShift) camera.setViewOffset(w, h, -viewShift, 0, w, h);
+  else camera.clearViewOffset();
+  camera.updateProjectionMatrix();
+  scaleLabels();
+}
+
+/* =====================================================================
+   7) ETKİLEŞİM — sürükle: döndür, tekerlek/pinch: yakınlaş, tıkla: kapı
+   ===================================================================== */
+const raycaster = new THREE.Raycaster();
+const ndc = new THREE.Vector2();
+const pointers = new Map();
+let press = null, pinch = null, hovered = null;
+const accentColor = new THREE.Color();
+
+function pickDoor(clientX, clientY) {
+  const rect = canvas.getBoundingClientRect();
+  ndc.set(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
+  raycaster.setFromCamera(ndc, camera);
+  const targets = furniture.visible ? blockers.concat(furnitureMeshes, doorParts) : blockers.concat(doorParts);
+  const hit = raycaster.intersectObjects(targets, false)[0];
+  return hit ? (hit.object.userData.door || null) : null;
+}
+function setHover(door) {
+  if (door === hovered) return;
+  if (hovered) for (const m of hovered.mats) { m.emissive.setRGB(0, 0, 0); }
+  hovered = door;
+  if (hovered) for (const m of hovered.mats) { m.emissive.copy(accentColor).multiplyScalar(0.35); }
+  canvas.classList.toggle('over-door', !!hovered);
+}
+function toggleDoor(door) {
+  door.target = door.target ? 0 : 1;
+  syncDoorButton();
+}
+
+canvas.addEventListener('pointerdown', e => {
+  canvas.setPointerCapture(e.pointerId);
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pointers.size === 1) {
+    press = { x: e.clientX, y: e.clientY, moved: false };
+    canvas.classList.add('dragging');
+  } else if (pointers.size === 2) {
+    const [a, b] = [...pointers.values()];
+    pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), r: goal.r };
+    if (press) press.moved = true;
+  }
+});
+canvas.addEventListener('pointermove', e => {
+  const p = pointers.get(e.pointerId);
+  if (!p) {
+    if (e.pointerType === 'mouse') setHover(pickDoor(e.clientX, e.clientY));
+    return;
+  }
+  const dx = e.clientX - p.x, dy = e.clientY - p.y;
+  p.x = e.clientX; p.y = e.clientY;
+  if (pointers.size === 1) {
+    goal.yaw -= dx * 0.0065;
+    goal.pitch = THREE.MathUtils.clamp(goal.pitch + dy * 0.0045, PITCH_MIN, PITCH_MAX);
+    if (press && Math.hypot(e.clientX - press.x, e.clientY - press.y) > 6) press.moved = true;
+    if (press && press.moved) setHover(null);
+  } else if (pointers.size === 2 && pinch) {
+    const [a, b] = [...pointers.values()];
+    const d = Math.hypot(a.x - b.x, a.y - b.y);
+    if (d > 10) goal.r = THREE.MathUtils.clamp(pinch.r * (pinch.d / d), R_MIN, R_MAX);
+  }
+});
+function endPointer(e) {
+  if (!pointers.has(e.pointerId)) return;
+  pointers.delete(e.pointerId);
+  if (pointers.size < 2) pinch = null;
+  if (pointers.size === 0) {
+    canvas.classList.remove('dragging');
+    if (press && !press.moved && e.type === 'pointerup') {
+      const door = pickDoor(e.clientX, e.clientY);
+      if (door) toggleDoor(door);
+    }
+    press = null;
+  }
+}
+canvas.addEventListener('pointerup', endPointer);
+canvas.addEventListener('pointercancel', endPointer);
+canvas.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse' && !pointers.size) setHover(null); });
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  goal.r = THREE.MathUtils.clamp(goal.r * Math.exp(e.deltaY * 0.0012), R_MIN, R_MAX);
+}, { passive: false });
+window.addEventListener('keydown', e => {
+  if (e.target.closest && e.target.closest('input, button, summary, a')) return;
+  const k = e.key;
+  if (k === 'ArrowLeft') goal.yaw += 0.12;
+  else if (k === 'ArrowRight') goal.yaw -= 0.12;
+  else if (k === 'ArrowUp') goal.pitch = Math.min(PITCH_MAX, goal.pitch + 0.08);
+  else if (k === 'ArrowDown') goal.pitch = Math.max(PITCH_MIN, goal.pitch - 0.08);
+  else if (k === '+' || k === '=') goal.r = Math.max(R_MIN, goal.r * 0.88);
+  else if (k === '-' || k === '_') goal.r = Math.min(R_MAX, goal.r / 0.88);
+  else return;
+  e.preventDefault();
+});
+
+/* ---------- Panel ---------- */
+const btnDoors = document.getElementById('btnDoors');
+function syncDoorButton() {
+  const anyClosed = doors.some(d => !d.target);
+  btnDoors.textContent = anyClosed ? 'Kapıları aç' : 'Kapıları kapat';
+}
+btnDoors.addEventListener('click', () => {
+  const open = doors.some(d => !d.target) ? 1 : 0;
+  for (const d of doors) d.target = open;
+  syncDoorButton();
+});
+document.getElementById('btnTop').addEventListener('click', topView);
+document.getElementById('btnReset').addEventListener('click', resetView);
+document.getElementById('tLabels').addEventListener('change', e => { labels.visible = e.target.checked; });
+document.getElementById('tFurniture').addEventListener('change', e => {
+  furniture.visible = e.target.checked;
+  setHover(null);
+});
+const collapseBtn = document.getElementById('collapse');
+const panelBody = document.getElementById('panelBody');
+function setCollapsed(c) {
+  panelEl.classList.toggle('collapsed', c);
+  panelBody.hidden = c;
+  collapseBtn.setAttribute('aria-expanded', String(!c));
+  collapseBtn.title = c ? 'Paneli aç' : 'Paneli daralt';
+  resize();
+}
+collapseBtn.addEventListener('click', () => setCollapsed(!panelEl.classList.contains('collapsed')));
+
+{
+  const tbody = document.querySelector('#roomTable tbody');
+  for (const r of ROOMS) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td><button class="room-btn" type="button">${r.name}</button></td>
+      <td class="dim">${r.dims}</td><td class="m2">${fmt(r.m2)}</td>
+      <td><span class="chip ${r.st}">${ST[r.st]}</span></td>`;
+    tr.querySelector('button').addEventListener('click', () => focusRoom(r));
+    tbody.appendChild(tr);
+  }
+  const net = ROOMS.filter(r => !r.outside).reduce((s, r) => s + r.m2, 0);
+  const balc = ROOMS.find(r => r.outside).m2;
+  document.querySelector('#roomTable tfoot').innerHTML =
+    `<tr><td>Net iç alan</td><td></td><td class="m2">${fmt(net)}</td><td class="dim">m²</td></tr>`;
+  document.getElementById('summary').textContent =
+    `2+1 · net ≈ ${fmt(net)} m² · balkon ${fmt(balc)} m²`;
+
+  const items = [
+    `<b>Yatak odası derinliği:</b> metinde <span class="num">173</span>, çizimde <span class="num">${M.bedroom.d}</span> yazıyor. Çizimdeki değer kullanıldı (<span class="num">M.bedroom.d</span>).`,
+    `<b>Duvarlar:</b> iç bölme <span class="num">${ti}</span> cm, cephe ve komşu duvarlar <span class="num">${te}</span> cm. Verilen ölçüler iç yüzden iç yüze.`,
+    `<b>Balkon:</b> <span class="num">${M.salon.dTotal} − ${M.study.d} = ${balconyD}</span> cm derinlik, <span class="num">${M.study.w}</span> cm genişlik.`,
+    `<b>Koridor kısa kolu:</b> salon kapısı <span class="num">${M.doorGap}</span> + duvar <span class="num">${ti}</span> + çalışma kapısı <span class="num">${M.study.w - M.study.topWall}</span> + <span class="num">${ti}</span> pay = <span class="num">${corrSW}</span> cm (duvarlarla ≈ <span class="num">${corrSW + 2 * ti}</span>).`,
+    `<b>Banyo genişliği:</b> çalışma odası üst duvarı <span class="num">${M.study.topWall} − ${ti} = ${bathW}</span> cm. Yatak odasından sağlama: <span class="num">${M.bedroom.w} − ${corrLW} − ${ti} = ${bathW}</span>.`,
+    `<b>Koridor uzun kolu:</b> genişlik <span class="num">${corrLW}</span> cm; yatak odası kapısının sol kenarı koridorun sol duvarıyla hizalanır.`,
+    `<b>Banyo derinliği:</b> <span class="num">${M.bathroom.d}</span> cm tahmin. Çelik kapı ve banyo kapısının sığması için gereken en az uzunluktan seçildi.`,
+    `<b>Kapılar:</b> boşluk <span class="num">${M.doorGap}</span>, yükseklik <span class="num">${M.doorHeight}</span>; kasa payı sonrası kanat ≈ <span class="num">${M.doorGap - 10}</span>, açıkken geçiş ≈ <span class="num">85</span>.`,
+    `<b>Yükseklik:</b> odalar <span class="num">${H}</span>, koridor asma tavan <span class="num">${M.corridorCeiling}</span> cm.`,
+  ];
+  document.getElementById('assumptionList').innerHTML = items.map(t => `<li>${t}</li>`).join('');
+}
+
+const coarse = window.matchMedia('(pointer: coarse)').matches;
+if (coarse) hintEl.innerHTML = '<b>Sürükle</b> döndür · <b>İki parmak</b> yakınlaştır · <b>Kapıya dokun</b> aç / kapat';
+
+/* ---------- Tema ---------- */
+function applyTheme() {
+  scene.background = new THREE.Color(cssVar('--scene'));
+  accentColor.set(cssVar('--accent'));
+  buildGrid(cssVar('--grid'), cssVar('--grid-strong'));
+  for (const def of labelDefs) if (def.sprite) refreshLabel(def);
+  scaleLabels();
+  if (hovered) { const h = hovered; hovered = null; setHover(h); }
+}
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
+new MutationObserver(applyTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'class'] });
+
+/* =====================================================================
+   8) DÖNGÜ
+   ===================================================================== */
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const ease = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+const clock = new THREE.Clock();
+
+function frame() {
+  const dt = Math.min(clock.getDelta(), 0.05);
+  const k = 1 - Math.exp(-dt * (reduceMotion ? 30 : 9));
+  view.yaw += (goal.yaw - view.yaw) * k;
+  view.pitch += (goal.pitch - view.pitch) * k;
+  view.r += (goal.r - view.r) * k;
+  view.pivot.lerp(goal.pivot, k);
+  updateCamera();
+
+  const dur = reduceMotion ? 0.12 : 0.9;
+  for (const d of doors) {
+    if (d.p === d.target) continue;
+    d.p = THREE.MathUtils.clamp(d.p + Math.sign(d.target - d.p) * dt / dur, 0, 1);
+    const e = ease(d.p);
+    if (d.kind === 'hinge') d.pivot.rotation.y = d.thetaC + (d.thetaO - d.thetaC) * e;
+    else d.group.position.copy(d.along).multiplyScalar(d.travel * e);
+  }
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+
+async function start() {
+  if (window.innerWidth < 560) setCollapsed(true);
+  try {
+    await Promise.race([
+      Promise.all([document.fonts.load(`600 13px ${FONT_UI}`), document.fonts.load(`400 11px ${FONT_MONO}`)]),
+      new Promise(r => setTimeout(r, 1500)),
+    ]);
+  } catch (_) { /* yazı tipi yüklenemezse sistem yazı tipi kullanılır */ }
+  applyTheme();
+  buildLabels();
+  resize();
+  goal.r = view.r = fitRadius();
+  syncDoorButton();
+  window.addEventListener('resize', resize);
+  clock.getDelta();
+  requestAnimationFrame(frame);
+  window.__house = { doors, L, M, goal, view, camera, pickDoor };
+}
+start();
+</script>
+</body>
+</html>
