@@ -995,10 +995,10 @@ ball(288, 128, 24, 64, mat.plant);
 }
 // Yatak odası
 {
-  // Yatak: karyola dahil 155 cm. Sol kenar kapının açılma alanının dışında (x 395);
-  // başlık duvardaki 5 cm'lik çıkıntının önüne gelir.
+  // Yatak: karyola dahil 155 cm, sağ duvara yaslı; kapı tarafında geniş alan kalır.
+  // Başlık duvardaki 5 cm'lik çıkıntının önüne gelir.
   const b = L.bed.z0 + M.bedroom.nicheDepth;
-  const bx = 395, bw = 155;
+  const bw = 155, bx = L.bed.x1 - bw;
   F(bx, bx + bw, b + 6, b + 205, 0, 30, mat.woodLight);            // karyola
   F(bx + 2.5, bx + bw - 2.5, b + 9, b + 202, 30, 50, mat.bedding); // şilte 150 × 193
   F(bx, bx + bw, b, b + 6, 0, 100, mat.woodLight);                 // başlık
