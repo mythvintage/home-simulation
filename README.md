@@ -85,7 +85,8 @@ Tüm ölçüler cm ve iç yüzden iç yüze. Sahnede 1 birim = 1 cm.
 - **Salon:** cam tarafındaki sol duvarda 120 × 35 × 200 kitaplık; kitaplığın 40 cm daha önünde tıklandıkça
   45° dönen tekli koltuk (salona, cama ya da kitaplığa çevrilebilir).
 - **Açık mutfak:** ada tezgah, sol duvar tezgahı ve arka duvar tezgahı birleşik; sağa (salon kapısına) açılan
-  U. Sol kolda evye ve üst dolaplar, arka kolda ocak, üst dolaplar ve buzdolabı.
+  U. Sol kolda evye ve üst dolaplar; arka kolda ankastre set (4 gözlü cam seramik ocak, altında 60 cm
+  ankastre fırın, ocaktan 65 cm yukarıda bacalı paslanmaz davlumbaz), üst dolap ve buzdolabı.
 - **Koridor:** kısa kolda salon kapısının tam karşısında 96 × 38 × 230 cm boydan portmanto (iki kapaklı,
   içinde şapkalık rafı ve askı borusu); çelik kapının yanındaki duvarda 64 × 176 cm boy aynası; çelik kapının
   karşısında ayakkabılık.
