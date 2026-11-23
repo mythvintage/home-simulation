@@ -18,6 +18,7 @@ Yerel sunucu isterseniz: `python3 -m http.server` → `http://localhost:8000`.
 | Tüm daireye dön | boş alana ya da başka odaya tıklama | dokunma | Esc |
 | Kapı / dolap / portmanto kapağı aç-kapat | kapıya, kasasına ya da üstündeki lentoya tıklama | dokunma | — |
 | Tekli koltuğu / çalışma sandalyesini (V2) 45° döndür | koltuğa tıklama | dokunma | — |
+| Kedileri göster / gizle | paneldeki **Kediler** anahtarı | dokunma | — |
 
 Paneldeki **Kapıları aç**, **Üstten bak**, **Sıfırla** düğmeleri ve **Etiketler** / **Mobilya** anahtarları da kullanılabilir.
 Bir odaya tıklandığında kamera pivotunu o odanın merkezine alır, odayı kadraja sığdırır ve diğer odalar soluklaşır;
@@ -98,6 +99,23 @@ eşyaları ve adları yer değiştirir.
   içinde şapkalık rafı ve askı borusu); çelik kapının yanındaki duvarda 64 × 176 cm boy aynası; çelik kapının
   karşısında ayakkabılık.
 
+- **Balkon:** kedi kum kabı (50 × 38 × 14), korkuluğun üstünden kirişe kadar 10 cm aralıklı kedi koruma teli.
+  Balkona açılan odanın sürgülü camında 22 × 26 cm kedi kapısı (geçiş 14 × 19), kedi geçerken sallanır.
+- **Salon:** kanepenin karşısında, mutfak tarafında 44 × 44 tabanlı, 78 cm kedi tırmalama direği.
+- **Çalışma masası (iki versiyonda):** klavye, mouse ve izolasyon pedlerinde kullanıcıya dönük iki adet
+  3,5 inç referans hoparlör.
+
+## Kediler
+
+Üç kedi (bembeyaz, tekir, simsiyah) daire içinde kendi başına dolaşır. 10 cm'lik bir ızgarada mobilya ve
+duvarlardan kaçınarak yol bulurlar; kapalı kapılardan geçemezler, balkona yalnızca kedi kapısından (ya da açık
+balkon kapısından) çıkarlar. Kediler dolaşabilsin diye iki odanın kapısı açık başlar.
+
+Davranışlar rastgele seçilir: yürüyerek gezinme, ani koşu, birbirini kovalama (kovalanan kaçar), oturma,
+yalanma, ekmek pozisyonunda yatma, kanepede / tekli koltukta / yatakta / tırmalama direğinin tepesinde
+uyuma, direği tırmalama, kum kabına gitme, balkonda dışarıyı seyretme. Uyurken nefes alır, dururken etrafa
+bakınır ve göz kırparlar. Odaya odaklanıldığında odanın dışındaki kediler de soluklaşır.
+
 ### Versiyon 1 — çalışma odası balkon tarafında
 
 - **Çalışma odası (260 × 410):** kapıdan girince soldaki duvarın köşesinde, iki duvara 2 cm mesafeyle
@@ -108,16 +126,16 @@ eşyaları ve adları yer değiştirir.
 
 ### Versiyon 2 — odalar yer değiştirdi
 
-- **Yatak odası (260 × 410, balkon tarafı):** 155 cm yatak, başlığı salon duvarında; balkon kapısının önünde
-  60 cm boşluk ve halı. Yatağın kapı tarafında komodin ve lamba. Tavana kadar (255 cm) L gardırop: sağ duvar
+- **Yatak odası (260 × 410, balkon tarafı):** 155 cm yatak, başlığı salon duvarının karşısındaki duvarda;
+  balkon camının önünde 60 cm boşluk ve halı; komodin yok. Tavana kadar (255 cm) L gardırop: sağ duvar
   boyunca yataktan sonra 190 cm, köşeden dönüp kapı tarafındaki duvar boyunca oda kapısının kasasına kadar
   160 cm, derinlik 60 cm. Köşe iki kolun ortak iç hacmi; içinde askı boruları, kapı yanındaki bölmede 4 raf,
   üstte asma bölme. Beş sütunda altta uzun, üstte asma bölme kapağı olmak üzere 10 kapak; menteşeler köşeden
   uzakta, kapaklar odaya açılır.
 - **Çalışma odası (280 × 256, cadde tarafı):** cam köşesinde 150 × 150 × 5 cm platform ve EFNOTE 5 (davulcu
   cama bakar); kapı duvarında X standında JUNO-Di, tuşları odaya bakar; klavyenin üstünde duvar askılarında
-  4 gitar; sol duvarda 140 × 60 çalışma masası ve monitör; ortada tıklandıkça 45° dönen çalışma sandalyesi
-  (klavyeye ya da masaya çevrilir).
+  4 gitar; sol duvarda 140 × 60 çalışma masası ve monitör; masanın önünde, ortasına hizalı, tıklandıkça 45°
+  dönen çalışma sandalyesi.
 
 ## Ölçüleri değiştirme
 

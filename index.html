@@ -359,6 +359,7 @@ details li b { color: var(--fg); font-weight: 500; }
       <div class="toggles">
         <label class="toggle"><input type="checkbox" id="tLabels" checked><span>Etiketler</span></label>
         <label class="toggle"><input type="checkbox" id="tFurniture" checked><span>Mobilya</span></label>
+        <label class="toggle"><input type="checkbox" id="tCats" checked><span>Kediler</span></label>
       </div>
       <div>
         <p class="section-label">Odalar · adına tıkla, kamera odaklansın</p>
@@ -549,6 +550,12 @@ const mat = {
   keyWhite: std('#f4f3ef', { roughness: 0.35 }),
   keyBlack: std('#151517', { roughness: 0.4 }),
   lcd: std('#6a8fb5', { roughness: 0.2, emissive: '#1d2f45', emissiveIntensity: 0.6 }),
+  speaker: std('#1d1e24', { roughness: 0.6 }),
+  cone: std('#2c3e66', { roughness: 0.5 }),
+  litter: std('#7a8fa6', { roughness: 0.6 }),
+  sand: std('#d8c9a3', { roughness: 1 }),
+  carpet: std('#8a7f72', { roughness: 1 }),
+  flap: new THREE.MeshStandardMaterial({ color: '#3a3f47', transparent: true, opacity: 0.55, roughness: 0.3 }),
 };
 const wallMats = [mat.wall, mat.wall, mat.cap, mat.wall, mat.wall, mat.wall];
 
@@ -861,6 +868,30 @@ function desk({ x0, x1, z0, z1, wall }) {
   const [mx0, mx1, sx0, sx1] = wall === 'right' ? [x1 - 10, x1 - 7, x1 - 12, x1 - 4] : [x0 + 7, x0 + 10, x0 + 4, x0 + 12];
   F(mx0, mx1, mid - 22, mid + 22, 92, 128, mat.black);
   F(sx0, sx1, mid - 6, mid + 6, 75, 92, mat.black);
+  // Masa üstü: klavye, mouse (kullanıcının sağında) ve 3,5 inç referans hoparlörler (14 × 18 × 21 cm,
+  // izolasyon pedlerinde, kullanıcıya doğru içe dönük). Yerel +x kullanıcıya bakar.
+  const g = new THREE.Group();
+  g.position.set(wall === 'right' ? x0 : x1, 75, -mid);
+  g.rotation.y = wall === 'right' ? Math.PI : 0;
+  furnParent.add(g);
+  lbox(g, -25, -11, 0, 1.6, -22, 22, mat.synth);
+  lbox(g, -24, -12, 1.6, 2.2, -21, 21, mat.keyBlack);
+  lbox(g, -23, -13, 0, 3.2, -36, -30, mat.synth);
+  for (const sz of [-42, 42]) {
+    const sp = new THREE.Group();
+    sp.position.set(-40, 0, sz);
+    sp.rotation.y = Math.atan2(sz, 80);
+    g.add(sp);
+    lbox(sp, -9, 9, 0, 1.2, -6.5, 6.5, mat.drumHead);
+    lbox(sp, -9, 9, 1.2, 22.2, -7, 7, mat.speaker);
+    for (const [r, y] of [[4.6, 8.8], [1.5, 18]]) {
+      const d = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.8, 24), y < 10 ? mat.cone : mat.chrome);
+      d.rotation.z = Math.PI / 2;
+      d.position.set(9.2, y, 0);
+      sp.add(d);
+    }
+  }
+  g.traverse(o => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; furnitureMeshes.push(o); } });
 }
 
 /* ---------- Döner çalışma sandalyesi: tıklandıkça 45° döner (yerel +x baktığı yön) ---------- */
@@ -1311,6 +1342,57 @@ inVersion(1, () => {
   }
   cyl(552, L.balcony.z1 - 25, 16, 0, 40, mat.terracotta);
   ball(552, L.balcony.z1 - 25, 24, 64, mat.plant);
+  // kedi kum kabı (sağ ön köşe): 50 × 38 × 14 cm açık tava, içinde kum
+  const lx0 = L.balcony.x1 - 56, lx1 = lx0 + 50, lz0 = L.balcony.z0 + 28, lz1 = lz0 + 38;
+  F(lx0, lx1, lz0, lz1, 0, 3, mat.litter);
+  F(lx0, lx1, lz0, lz0 + 1.5, 3, 14, mat.litter);
+  F(lx0, lx1, lz1 - 1.5, lz1, 3, 14, mat.litter);
+  F(lx0, lx0 + 1.5, lz0 + 1.5, lz1 - 1.5, 3, 14, mat.litter);
+  F(lx1 - 1.5, lx1, lz0 + 1.5, lz1 - 1.5, 3, 14, mat.litter);
+  F(lx0 + 1.5, lx1 - 1.5, lz0 + 1.5, lz1 - 1.5, 3, 9, mat.sand);
+}
+// Balkon: kedi koruma teli — korkuluğun üstünden kirişe kadar, 10 cm aralıklı
+{
+  const zN = -te + 2, x0 = L.balcony.x0, x1 = L.balcony.x1, y0 = 104, y1 = 240, step = 10, pts = [];
+  for (let x = x0; x <= x1 + 0.1; x += step) pts.push(x, y0, -zN, x, y1, -zN);
+  for (let y = y0; y <= y1 + 0.1; y += step) pts.push(x0, y, -zN, x1, y, -zN);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+  structure.add(new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: '#8a8f99', transparent: true, opacity: 0.75 })));
+}
+// Balkon camında kedi kapısı (sürgünün sabit kanadında): 22 × 26 cm çerçeve, 14 × 19 cm geçiş, sallanan kapak
+const FLAP = { x0: 480, x1: 502, z: L.study.z0 - ti / 2 + 2.4, y0: 7, y1: 33 };
+const flapPivot = new THREE.Group();
+{
+  const { x0, x1, z, y0, y1 } = FLAP;
+  const part = (a0, a1, b0, b1) => {
+    const m = boxMesh(a0, a1, z - 2, z + 2, b0, b1, mat.pvc);
+    m.userData.catPass = true;
+    blockers.push(m);
+  };
+  part(x0, x1, y0, y0 + 3); part(x0, x1, y1 - 4, y1); part(x0, x0 + 4, y0 + 3, y1 - 4); part(x1 - 4, x1, y0 + 3, y1 - 4);
+  flapPivot.position.set((x0 + x1) / 2, y1 - 4, -z);
+  structure.add(flapPivot);
+  const leaf = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0 - 8.6, y1 - y0 - 7.6, 0.6), mat.flap);
+  leaf.position.y = -(y1 - y0 - 7.6) / 2;
+  leaf.userData.catPass = true;
+  flapPivot.add(leaf);
+}
+// Salon: kedi tırmalama tahtası — 44 × 44 halı taban, sisal direk, üstte minderli tabla (78 cm)
+const TREE = { x: L.salon.x1 - 23, z: L.kitchenZ - 28 };
+{
+  const { x, z } = TREE;
+  F(x - 22, x + 22, z - 22, z + 22, 0, 4, mat.carpet);
+  const sisal = canvasTexture((g, S) => {
+    g.fillStyle = '#cdb48a'; g.fillRect(0, 0, S, S);
+    g.strokeStyle = 'rgba(110,85,45,0.45)'; g.lineWidth = 3;
+    for (let y = 2; y < S; y += 8) { g.beginPath(); g.moveTo(0, y); g.lineTo(S, y + 3); g.stroke(); }
+  }, 128);
+  cyl(x, z, 5.5, 4, 70, new THREE.MeshStandardMaterial({ map: sisal, roughness: 1 }), 20);
+  F(x - 20, x + 20, z - 20, z + 20, 70, 74, mat.carpet);
+  cyl(x, z, 15, 74, 78, mat.fabric2, 28);
+  cyl(x + 18, z + 18, 0.3, 50, 70, mat.black, 6);
+  ball(x + 18, z + 18, 2.5, 48, mat.terracotta);
 }
 // Banyo — kapıdan girince: sağ duvarda lavabo + çamaşır/kurutma makinesi,
 // karşı duvarda klozet (gerisi boş), sol duvarda kapı tarafındaki köşede duşakabin
@@ -1371,18 +1453,17 @@ inVersion(1, () => {
 
 // V2 · odalar yer değiştirdi
 inVersion(2, () => {
-  // Yatak odası (balkon tarafındaki 260 × 410 oda): başlık salon duvarında, balkon kapısının önünde 60 cm boşluk
+  // Yatak odası (balkon tarafındaki 260 × 410 oda): başlık sağ duvarda (salon duvarının karşısı),
+  // balkon kapısının önünde 60 cm boşluk; komodin yok
   {
-    const hx = L.study.x0, z0 = L.study.z0 + 60, z1 = z0 + 155;
-    F(hx, hx + 6, z0, z1, 0, 100, mat.woodLight);                 // başlık
-    F(hx + 6, hx + 205, z0, z1, 0, 30, mat.woodLight);            // karyola 155 × 199
-    F(hx + 9, hx + 202, z0 + 2.5, z1 - 2.5, 30, 50, mat.bedding); // şilte 150 × 193
-    F(hx + 13, hx + 49, z0 + 10, z0 + 73, 50, 60, mat.white);     // yastıklar
-    F(hx + 13, hx + 49, z0 + 82, z1 - 10, 50, 60, mat.white);
-    F(hx + 57, hx + 203, z0 + 1, z1 - 1, 50, 54, mat.blanket);    // yorgan
-    F(hx, hx + 45, z1 + 5, z1 + 45, 0, 50, mat.woodLight);        // komodin (kapı tarafı)
-    cyl(hx + 22, z1 + 25, 7, 50, 76, mat.white);                  // lamba
-    F(hx + 20, hx + 190, L.study.z0 + 10, z0 - 8, 0.6, 1.6, mat.rug2); // halı: yatak ile balkon camı arası
+    const hx = L.study.x1, z0 = L.study.z0 + 60, z1 = z0 + 155;
+    F(hx - 6, hx, z0, z1, 0, 100, mat.woodLight);                 // başlık
+    F(hx - 205, hx - 6, z0, z1, 0, 30, mat.woodLight);            // karyola 155 × 199
+    F(hx - 202, hx - 9, z0 + 2.5, z1 - 2.5, 30, 50, mat.bedding); // şilte 150 × 193
+    F(hx - 49, hx - 13, z0 + 10, z0 + 73, 50, 60, mat.white);     // yastıklar
+    F(hx - 49, hx - 13, z0 + 82, z1 - 10, 50, 60, mat.white);
+    F(hx - 203, hx - 57, z0 + 1, z1 - 1, 50, 54, mat.blanket);    // yorgan
+    F(L.study.x0 + 20, L.study.x0 + 190, L.study.z0 + 10, z0 - 8, 0.6, 1.6, mat.rug2); // halı: yatak ile cam arası
     // L gardırop, tavana kadar: sağ duvar boyunca yataktan sonra başlar, köşeden dönüp kapı tarafındaki duvar
     // boyunca oda kapısının kasasına kadar uzanır. İçi boş gövde: altta askı borusu ve raflı bölme, üstte asma
     // bölme rafı; köşe iki kolun ortak iç hacmi. Kapaklar (altta uzun, üstte asma bölme) odaya açılır.
@@ -1444,7 +1525,7 @@ inVersion(2, () => {
       F(gx - 1.5, gx + 1.5, wallZ(gx), back + th - 2, top - 19, top - 16, mat.drumHead); // askı kolu
     }
     desk({ x0: Rm.x0, x1: Rm.x0 + 60, z0: Rm.z0 + 93, z1: Rm.z0 + 233, wall: 'left' });
-    deskChair({ name: 'Çalışma sandalyesi', x: 395, z: Rm.z0 + 77, angle: -Math.PI / 2 });
+    deskChair({ name: 'Çalışma sandalyesi', x: Rm.x0 + 60 + 24, z: Rm.z0 + 163, angle: Math.PI });   // masaya dönük, ortasına hizalı
   }
 });
 
@@ -1993,6 +2074,7 @@ function setVersion(v, persist = true) {
   setHover(null);
   syncDoorButton();
   syncFocusUI();
+  catsOnVersion();
   if (!persist) return;
   try { localStorage.setItem('daire-yerlesim', String(v)); } catch (_) { /* yok say */ }
   try { history.replaceState(null, '', '#v' + v); } catch (_) { /* yok say */ }
@@ -2030,6 +2112,579 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', app
 new MutationObserver(applyTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'class'] });
 
 /* =====================================================================
+   KEDİLER — 10 cm'lik ızgarada yol bulma ve rastgele kedi davranışları
+   ===================================================================== */
+const catsGroup = new THREE.Group();
+scene.add(catsGroup);
+const CELL = 10, GX0 = L.outer.x0, GZ0 = L.outer.z0;
+const GW = Math.ceil((L.outer.x1 - GX0) / CELL), GD = Math.ceil((L.outer.z1 - GZ0) / CELL), GN = GW * GD;
+const gWalk = new Uint8Array(GN);           // 1: yürünebilir (kapı durumu hariç)
+const gY = new Float32Array(GN);            // zemin yüksekliği (davul platformu 5 cm)
+const gDoor = new Array(GN).fill(null);     // kapı boşluğundaki hücreler
+const cellOf = (x, z) => {
+  const i = Math.floor((x - GX0) / CELL), j = Math.floor((z - GZ0) / CELL);
+  return i < 0 || j < 0 || i >= GW || j >= GD ? -1 : j * GW + i;
+};
+const cX = c => GX0 + ((c % GW) + 0.5) * CELL;
+const cZ = c => GZ0 + (Math.floor(c / GW) + 0.5) * CELL;
+const doorNamed = n => doors.find(d => d.name === n);
+// Kediler kapı boşluklarından yalnızca kapı açıkken geçer; kedi kapısı ve salon geçidi hep açık.
+const DOORWAYS = [
+  { rect: [L.salonDoor.x0 + 6, L.salonDoor.x1 - 6, L.top.z0 - 7, L.top.z1 + 7] },
+  { rect: [L.studyDoor.x0 + 7, L.studyDoor.x1 - 7, L.top.z0 - 7, L.top.z1 + 7], door: doorNamed('Çalışma odası') },
+  { rect: [L.bedDoor.x0 + 7, L.bedDoor.x1 - 7, L.bedWall.z0 - 7, L.bedWall.z1 + 7], door: doorNamed('Yatak odası') },
+  { rect: [L.corrL.x1 - 7, L.bath.x0 + 7, L.bathDoor.z0 + 7, L.bathDoor.z1 - 7], door: doorNamed('Banyo') },
+  { rect: [L.mid.x0 - 7, L.mid.x1 + 7, L.balconyDoor.z0 + 8, L.balconyDoor.z1 - 8], door: doorNamed('Balkon kapısı') },
+  { rect: [L.study.x0 + 8, L.study.x0 + 118, L.study.z0 - ti - 7, L.study.z0 + 7], door: doorNamed('Balkon sürgüsü') },
+  { rect: [FLAP.x0 + 4, FLAP.x1 - 4, L.study.z0 - ti - 7, L.study.z0 + 7] },
+];
+const passable = c => c >= 0 && gWalk[c] === 1 && (!gDoor[c] || !gDoor[c].door || gDoor[c].door.p > 0.85);
+const rectDist = (x, z, r) => Math.hypot(Math.max(r[0] - x, 0, x - r[1]), Math.max(r[2] - z, 0, z - r[3]));
+const inRect = (x, z, r) => x >= r[0] && x <= r[1] && z >= r[2] && z <= r[3];
+
+// Tünekler: kedilerin zıplayıp oturduğu/uyuduğu yüzeyler (ver: 0 ortak, 1/2 versiyona özel)
+const LITTER = [L.balcony.x1 - 56, L.balcony.x1 - 6, L.balcony.z0 + 28, L.balcony.z0 + 66];
+const PERCHES = [
+  { id: 'kanepe', ver: 0, foot: [0, 92, 135, 335], top: [30, 84, 162, 308], y: 50, rest: true },
+  { id: 'koltuk', ver: 0, foot: [92, 172, 28, 108], top: [124, 140, 60, 76], y: 48, rest: true },
+  { id: 'tırmalama', ver: 0, foot: [TREE.x - 22, TREE.x + 22, TREE.z - 22, TREE.z + 22], top: [TREE.x - 8, TREE.x + 8, TREE.z - 8, TREE.z + 8], y: 78, rest: true },
+  { id: 'kum kabı', ver: 0, foot: LITTER, top: [LITTER[0] + 14, LITTER[1] - 14, LITTER[2] + 11, LITTER[3] - 11], y: 9, litter: true },
+  { id: 'yatak', ver: 1, foot: [L.bed.x1 - 155, L.bed.x1, L.bed.z0 + 5, L.bed.z0 + 210], top: [L.bed.x1 - 145, L.bed.x1 - 12, L.bed.z0 + 70, L.bed.z0 + 200], y: 54, rest: true },
+  { id: 'yatak', ver: 2, foot: [L.study.x1 - 205, L.study.x1, L.study.z0 + 60, L.study.z0 + 215], top: [L.study.x1 - 195, L.study.x1 - 62, L.study.z0 + 70, L.study.z0 + 205], y: 54, rest: true },
+];
+let scratchCells = [];
+
+function buildCatGrid() {
+  gWalk.fill(0); gY.fill(0.6); gDoor.fill(null);
+  for (let c = 0; c < GN; c++) {
+    const x = cX(c), z = cZ(c);
+    if (SPACES.some(sp => sp.rects.some(r => inRect(x, z, r)))) gWalk[c] = 1;
+    for (const dw of DOORWAYS) if (inRect(x, z, dw.rect)) { gWalk[c] = 1; gDoor[c] = dw; }
+  }
+  const mark = (o, pad) => {
+    box3.setFromObject(o);
+    if (box3.isEmpty()) return;
+    const { min, max } = box3;
+    const r = [min.x - pad, max.x + pad, -max.z - pad, -min.z + pad];
+    const low = max.y <= 6 && o.material === mat.riser;      // davul platformu: üstünde yürünür
+    if (!low && (min.y > 28 || max.y < 9)) return;           // altından geçilir ya da halı gibi alçak
+    const i0 = Math.max(0, Math.floor((r[0] - GX0) / CELL)), i1 = Math.min(GW - 1, Math.floor((r[1] - GX0) / CELL));
+    const j0 = Math.max(0, Math.floor((r[2] - GZ0) / CELL)), j1 = Math.min(GD - 1, Math.floor((r[3] - GZ0) / CELL));
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+      const c = j * GW + i;
+      if (!inRect(cX(c), cZ(c), r)) continue;
+      if (low) gY[c] = max.y; else gWalk[c] = 0;
+    }
+  };
+  structure.traverse(o => { if (o.isMesh && !o.userData.catPass && !o.userData.kind) mark(o, 6); });
+  for (const o of doorsGroup.children) if (o.isMesh) mark(o, 6);       // kapı kasaları
+  furniture.traverse(o => { if (o.isMesh && isActive(o)) mark(o, 4); });
+  for (const p of PERCHES) {
+    p.app = [];
+    if (p.ver && p.ver !== version) continue;
+    for (let c = 0; c < GN; c++) {
+      if (!gWalk[c]) continue;
+      const d = rectDist(cX(c), cZ(c), p.foot);
+      if (d > 0 && d <= 24) p.app.push(c);
+    }
+  }
+  scratchCells = [];
+  for (let c = 0; c < GN; c++) {
+    const d = Math.hypot(cX(c) - TREE.x, cZ(c) - TREE.z);
+    if (gWalk[c] && d >= 9 && d <= 20) scratchCells.push(c);
+  }
+}
+
+// --- yol bulma
+class MinHeap {
+  constructor() { this.k = []; this.v = []; }
+  get size() { return this.k.length; }
+  push(k, v) {
+    const a = this.k, b = this.v;
+    let i = a.length;
+    a.push(k); b.push(v);
+    while (i > 0) { const p = (i - 1) >> 1; if (b[p] <= v) break; a[i] = a[p]; b[i] = b[p]; i = p; }
+    a[i] = k; b[i] = v;
+  }
+  pop() {
+    const a = this.k, b = this.v, top = a[0], lk = a.pop(), lv = b.pop();
+    if (a.length) {
+      let i = 0;
+      for (;;) {
+        let l = 2 * i + 1;
+        if (l >= a.length) break;
+        if (l + 1 < a.length && b[l + 1] < b[l]) l++;
+        if (b[l] >= lv) break;
+        a[i] = a[l]; b[i] = b[l]; i = l;
+      }
+      a[i] = lk; b[i] = lv;
+    }
+    return top;
+  }
+}
+const NB = [[1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1], [1, 1, 1.414], [1, -1, 1.414], [-1, 1, 1.414], [-1, -1, 1.414]];
+function astar(s, t) {
+  const g = new Float32Array(GN).fill(Infinity), came = new Int32Array(GN).fill(-1), closed = new Uint8Array(GN);
+  const ti2 = t % GW, tj = (t - ti2) / GW;
+  const hf = c => { const i = c % GW, j = (c - i) / GW, a = Math.abs(i - ti2), b = Math.abs(j - tj); return Math.max(a, b) + 0.414 * Math.min(a, b); };
+  const open = new MinHeap();
+  g[s] = 0; open.push(s, hf(s));
+  while (open.size) {
+    const c = open.pop();
+    if (c === t) break;
+    if (closed[c]) continue;
+    closed[c] = 1;
+    const ci = c % GW, cj = (c - ci) / GW;
+    for (const [di, dj, w] of NB) {
+      const ni = ci + di, nj = cj + dj;
+      if (ni < 0 || nj < 0 || ni >= GW || nj >= GD) continue;
+      const n = nj * GW + ni;
+      if (closed[n] || !passable(n)) continue;
+      if (di && dj && (!passable(cj * GW + ni) || !passable(nj * GW + ci))) continue;
+      const ng = g[c] + w;
+      if (ng < g[n]) { g[n] = ng; came[n] = c; open.push(n, ng + hf(n)); }
+    }
+  }
+  if (s !== t && came[t] < 0) return null;
+  const cells = [t];
+  for (let c = t; c !== s;) { c = came[c]; cells.push(c); }
+  return cells.reverse();
+}
+function clearLine(ax, az, bx, bz) {
+  const n = Math.ceil(Math.hypot(bx - ax, bz - az) / 4);
+  for (let k = 1; k < n; k++) if (!passable(cellOf(ax + (bx - ax) * k / n, az + (bz - az) * k / n))) return false;
+  return true;
+}
+function pathTo(cat, target) {
+  let s = cellOf(cat.x, cat.z);
+  if (!passable(s)) s = nearestPassable(cat.x, cat.z);
+  if (s < 0 || !passable(target)) return null;
+  const cells = astar(s, target);
+  if (!cells) return null;
+  const pts = cells.map(c => ({ x: cX(c), z: cZ(c) })), out = [];
+  let ax = cat.x, az = cat.z, i = 0;
+  while (i < pts.length) {
+    let j = pts.length - 1;
+    while (j > i && !clearLine(ax, az, pts[j].x, pts[j].z)) j--;
+    out.push(pts[j]); ax = pts[j].x; az = pts[j].z; i = j + 1;
+  }
+  return out;
+}
+function reach(s) {
+  const d = new Int16Array(GN).fill(-1), q = new Int32Array(GN);
+  let h = 0, t = 0;
+  if (s < 0) return { d, cells: [] };
+  d[s] = 0; q[t++] = s;
+  while (h < t) {
+    const c = q[h++], ci = c % GW, cj = (c - ci) / GW;
+    for (let k = 0; k < 4; k++) {
+      const ni = ci + NB[k][0], nj = cj + NB[k][1];
+      if (ni < 0 || nj < 0 || ni >= GW || nj >= GD) continue;
+      const n = nj * GW + ni;
+      if (d[n] >= 0 || !passable(n)) continue;
+      d[n] = d[c] + 1; q[t++] = n;
+    }
+  }
+  return { d, cells: q.subarray(0, t) };
+}
+function nearestPassable(x, z) {
+  let best = -1, bd = Infinity;
+  for (let c = 0; c < GN; c++) {
+    if (!passable(c)) continue;
+    const d = (cX(c) - x) ** 2 + (cZ(c) - z) ** 2;
+    if (d < bd) { bd = d; best = c; }
+  }
+  return best;
+}
+
+// --- kedi modeli: düşük poligonlu, yerel +x baktığı yön, ölçüler cm
+const unitSphere = new THREE.SphereGeometry(1, 20, 14);
+const bodyGeo = unitSphere.clone().rotateZ(Math.PI / 2);
+const legGeo = new THREE.CylinderGeometry(1.8, 1.4, 1, 10).translate(0, -0.5, 0);
+const tailGeo = new THREE.CylinderGeometry(1, 1, 4.4, 8).rotateZ(Math.PI / 2).translate(-2.2, 0, 0);
+const earGeo = new THREE.ConeGeometry(2.8, 6, 4);
+function tabbyTexture(base, dark) {
+  return canvasTexture((g, S) => {
+    const r = rng(41);
+    g.fillStyle = base; g.fillRect(0, 0, S, S);
+    g.fillStyle = dark;
+    for (let y = 6; y < S; y += 20 + r() * 10) {
+      g.beginPath();
+      g.moveTo(0, y);
+      for (let x = 0; x <= S; x += 16) g.lineTo(x, y + Math.sin(x * 0.05 + y) * 4 + (r() - 0.5) * 3);
+      for (let x = S; x >= 0; x -= 16) g.lineTo(x, y + 6 + Math.sin(x * 0.04 + y * 0.7) * 4);
+      g.closePath();
+      g.fill();
+    }
+  }, 256);
+}
+function makeCat({ fur, dark, belly, eye }) {
+  const root = new THREE.Group();
+  catsGroup.add(root);
+  const mats = [];
+  const mk = o => { const m = new THREE.MeshStandardMaterial({ roughness: 0.85, ...o }); mats.push(m); return m; };
+  const furM = dark ? mk({ map: tabbyTexture(fur, dark) }) : mk({ color: fur });
+  const darkM = dark ? mk({ color: dark }) : furM;
+  const bellyM = mk({ color: belly });
+  const eyeM = mk({ color: eye, emissive: eye, emissiveIntensity: 0.4, roughness: 0.2 });
+  const noseM = mk({ color: '#d98f95' });
+  const add = (parent, geo, m, x, y, z, sx = 1, sy = 1, sz = 1) => {
+    const o = new THREE.Mesh(geo, m);
+    o.position.set(x, y, z);
+    o.scale.set(sx, sy, sz);
+    o.castShadow = o.receiveShadow = true;
+    parent.add(o);
+    return o;
+  };
+  const body = add(root, bodyGeo, furM, 0, 21, 0, 19, 9.5, 8.5);
+  const head = new THREE.Group();
+  root.add(head);
+  add(head, unitSphere, furM, 0, 0, 0, 7, 6.4, 7.2);
+  add(head, unitSphere, bellyM, 5, -2, 0, 3.2, 2.6, 3.6);
+  add(head, unitSphere, noseM, 7.9, -0.6, 0, 0.9, 0.7, 1);
+  const eyes = [-1, 1].map(sg => add(head, unitSphere, eyeM, 5.3, 1.7, sg * 2.7, 1.05, 1.1, 1.05));
+  for (const sg of [-1, 1]) {
+    const ear = add(head, earGeo, furM, 0.3, 6.2, sg * 3.9);
+    ear.rotation.set(sg * 0.3, Math.PI / 4, 0);
+  }
+  const legs = [[12, 5, true], [12, -5, true], [-12, 5.5, false], [-12, -5.5, false]].map(([lx, lz, front]) => {
+    const hip = new THREE.Group();
+    root.add(hip);
+    const leg = add(hip, legGeo, furM, 0, 0, 0);
+    const paw = add(hip, unitSphere, front ? bellyM : furM, 0.8, -1, 0, 2.2, 1.3, 2);
+    return { hip, leg, paw, lx, lz, front };
+  });
+  const tail = [];
+  let parent = root;
+  for (let i = 0; i < 9; i++) {
+    const seg = new THREE.Group();
+    if (i) seg.position.x = -4.4;
+    parent.add(seg);
+    const r = 1.9 - i * 0.08;
+    add(seg, tailGeo, dark && i % 2 ? darkM : furM, 0, 0, 0, 1, r, r);
+    tail.push(seg);
+    parent = seg;
+  }
+  return { root, body, head, eyes, legs, tail, mats };
+}
+
+// Pozlar: gövde yüksekliği ve eğimi, gövde boyu, baş konumu/eğimi/yanal dönüşü, kuyruk, göz açıklığı
+const POSES = {
+  stand:   { by: 21, pitch: 0, len: 1, hx: 20, hy: 31, hp: 0, hyaw: 0, tb: -0.85, tc: -0.07, curl: 0, eye: 1 },
+  walk:    { by: 21, pitch: 0, len: 1, hx: 21, hy: 30, hp: 0.05, hyaw: 0, tb: -0.7, tc: -0.06, curl: 0, eye: 1 },
+  run:     { by: 20, pitch: 0, len: 1.06, hx: 23, hy: 27, hp: 0.15, hyaw: 0, tb: -0.15, tc: 0, curl: 0, eye: 1 },
+  sit:     { by: 18, pitch: 0.6, len: 0.95, hx: 15, hy: 37, hp: 0, hyaw: 0, tb: 1.25, tc: 0.05, curl: 0.42, eye: 1 },
+  groom:   { by: 18, pitch: 0.6, len: 0.95, hx: 15, hy: 33, hp: 0.55, hyaw: 0.5, tb: 1.25, tc: 0.05, curl: 0.42, eye: 0.5 },
+  loaf:    { by: 11, pitch: 0, len: 0.9, hx: 17, hy: 20, hp: 0, hyaw: 0, tb: 1.3, tc: 0.05, curl: 0.4, eye: 0.7 },
+  sleep:   { by: 8.5, pitch: 0, len: 0.82, hx: 12, hy: 11, hp: 0.35, hyaw: 0.9, tb: 1.35, tc: 0.05, curl: 0.55, eye: 0.08 },
+  scratch: { by: 28, pitch: 1.0, len: 1, hx: 9, hy: 50, hp: -0.2, hyaw: 0, tb: 0.5, tc: -0.05, curl: 0, eye: 1 },
+  jump:    { by: 21, pitch: -0.1, len: 1.08, hx: 22, hy: 29, hp: 0, hyaw: 0, tb: -0.3, tc: 0.02, curl: 0, eye: 1 },
+};
+const POSE_KEYS = Object.keys(POSES.stand);
+
+const CAT_DEFS = [
+  { fur: '#f3f1ec', belly: '#ffffff', eye: '#6aa9e8', at: [180, 120] },                    // bembeyaz
+  { fur: '#9b7b57', dark: '#4a3a2a', belly: '#d9c7ab', eye: '#8cc152', at: [300, 680] },   // tekir
+  { fur: '#1b1b20', belly: '#26262b', eye: '#e8c547', at: [450, 470] },                    // simsiyah
+];
+const cats = [];
+const rand = (a, b) => a + Math.random() * (b - a);
+const pickOne = arr => arr[Math.floor(Math.random() * arr.length)];
+const angDiff = (a, b) => Math.atan2(Math.sin(b - a), Math.cos(b - a));
+let catsReady = false;
+
+function initCats() {
+  buildCatGrid();
+  for (const def of CAT_DEFS) {
+    const m = makeCat(def);
+    const c = nearestPassable(def.at[0], def.at[1]);
+    const P = { ...POSES.stand };
+    cats.push({ m, x: cX(c), z: cZ(c), y: gY[c], h: Math.random() * Math.PI * 2, P, pose: 'stand', speed: 0,
+      phase: Math.random() * 10, tasks: [], cur: null, perch: null, look: 0, lookT: 0, blinkT: rand(2, 5),
+      side: Math.random() < 0.5 ? -1 : 1, opacity: 1, t: 0 });
+  }
+  catsReady = true;
+}
+// Versiyon değişince ızgarayı yenile; artık olmayan bir tünekteki ya da kapanan bir yerdeki kediyi yere indir
+function catsOnVersion() {
+  if (!catsReady) return;
+  buildCatGrid();
+  for (const cat of cats) {
+    const lost = cat.perch && cat.perch.ver && cat.perch.ver !== version;
+    if (lost || (!cat.perch && !passable(cellOf(cat.x, cat.z)))) {
+      const c = nearestPassable(cat.x, cat.z);
+      cat.x = cX(c); cat.z = cZ(c); cat.y = gY[c]; cat.perch = null;
+    }
+    cat.tasks = []; cat.cur = null;
+  }
+}
+
+// --- görevler
+const T = {
+  go: (cell, speed) => ({ type: 'go', cell, speed }),
+  hold: (pose, dur, faceTo) => ({ type: 'hold', pose, dur, faceTo }),
+  chase: (other, dur) => ({ type: 'chase', other, dur }),
+  jump: (x, z, y, perch) => ({ type: 'jump', x, z, y, perch }),
+};
+function farCell(cells, d, fromX, fromZ, minDist) {
+  for (let k = 0; k < 60; k++) {
+    const c = cells[Math.floor(Math.random() * cells.length)];
+    if (Math.hypot(cX(c) - fromX, cZ(c) - fromZ) >= minDist) return c;
+  }
+  return cells.length ? cells[Math.floor(Math.random() * cells.length)] : -1;
+}
+function perchPoint(p, cat) {
+  const t = p.top, nx = THREE.MathUtils.clamp(cat.x, t[0], t[1]), nz = THREE.MathUtils.clamp(cat.z, t[2], t[3]);
+  const cx = (t[0] + t[1]) / 2, cz = (t[2] + t[3]) / 2;
+  const k = rand(0.15, 0.6);
+  return [nx + (cx - nx) * k, nz + (cz - nz) * k];
+}
+function toPerch(cat, R, p, holdPose, holdDur) {
+  const app = p.app.filter(c => R.d[c] >= 0);
+  if (!app.length) return false;
+  let best = app[0];
+  for (const c of app) if (R.d[c] < R.d[best]) best = c;
+  if (Math.random() < 0.5) best = pickOne(app);
+  cat.tasks.push(T.go(best, rand(28, 38)), { type: 'jumpOn', perch: p }, T.hold(holdPose, holdDur));
+  return true;
+}
+function decide(cat) {
+  if (cat.perch) {
+    const p = cat.perch;
+    if (p.litter || Math.random() < 0.45) cat.tasks.push({ type: 'jumpDown' });
+    else cat.tasks.push(T.hold(pickOne(['sleep', 'sleep', 'loaf', 'sit', 'groom']), rand(8, 30)));
+    return;
+  }
+  const R = reach(cellOf(cat.x, cat.z));
+  if (R.cells.length < 4) { cat.tasks.push(T.hold('sit', rand(2, 4))); return; }
+  const rests = PERCHES.filter(p => p.rest && (!p.ver || p.ver === version) && p.app.some(c => R.d[c] >= 0));
+  const others = cats.filter(o => o !== cat && !o.perch && o.cur?.type !== 'jump' && R.d[cellOf(o.x, o.z)] >= 0);
+  const opts = [['wander', 30], ['run', 8], ['sit', 12], ['groom', 8], ['loaf', 7], ['nap', 11], ['perch', 9], ['scratch', 5], ['litter', 4], ['balcony', 7]];
+  if (others.length) opts.push(['chase', 10]);
+  let r = Math.random() * opts.reduce((s, o) => s + o[1], 0), choice = 'wander';
+  for (const [n, w] of opts) { if ((r -= w) < 0) { choice = n; break; } }
+  const cells = R.cells;
+  switch (choice) {
+    case 'run': {
+      cat.tasks.push(T.go(farCell(cells, R.d, cat.x, cat.z, 250), rand(150, 220)));
+      if (Math.random() < 0.4) cat.tasks.push(T.go(farCell(cells, R.d, cat.x, cat.z, 200), rand(150, 220)));
+      cat.tasks.push(T.hold('stand', rand(0.6, 1.5)));
+      break;
+    }
+    case 'chase': {
+      const o = pickOne(others);
+      cat.tasks.push(T.chase(o, rand(4, 8)), T.hold('sit', rand(1, 3)));
+      if (!o.cur || o.cur.type !== 'jump') {
+        const R2 = reach(cellOf(o.x, o.z));
+        o.tasks = [T.go(farCell(R2.cells, R2.d, cat.x, cat.z, 280), rand(170, 230)), T.hold(pickOne(['sit', 'stand']), rand(1.5, 4))];
+        o.cur = null;
+      }
+      break;
+    }
+    case 'sit': case 'groom': case 'loaf':
+      cat.tasks.push(T.hold(choice, rand(3, 9)));
+      break;
+    case 'nap':
+      if (rests.length && Math.random() < 0.75 && toPerch(cat, R, pickOne(rests), 'sleep', rand(18, 45))) break;
+      cat.tasks.push(T.go(farCell(cells, R.d, cat.x, cat.z, 60), rand(28, 36)), T.hold('sleep', rand(15, 35)));
+      break;
+    case 'perch':
+      if (rests.length && toPerch(cat, R, pickOne(rests), pickOne(['loaf', 'sit', 'groom']), rand(6, 16))) break;
+      cat.tasks.push(T.hold('sit', rand(3, 6)));
+      break;
+    case 'scratch': {
+      const sc = scratchCells.filter(c => R.d[c] >= 0);
+      if (!sc.length) { cat.tasks.push(T.hold('sit', 3)); break; }
+      cat.tasks.push(T.go(pickOne(sc), rand(28, 38)), T.hold('scratch', rand(2.5, 5), [TREE.x, TREE.z]));
+      const tree = PERCHES.find(p => p.id === 'tırmalama');
+      if (Math.random() < 0.35) cat.tasks.push({ type: 'jumpOn', perch: tree }, T.hold(pickOne(['loaf', 'sleep']), rand(8, 25)));
+      break;
+    }
+    case 'litter': {
+      const lp = PERCHES.find(p => p.litter);
+      if (!toPerch(cat, R, lp, 'sit', rand(4, 8))) cat.tasks.push(T.hold('sit', 3));
+      break;
+    }
+    case 'balcony': {
+      const b = SPACE.balkon.rects[0];
+      const bc = Array.from(cells).filter(c => inRect(cX(c), cZ(c), b));
+      if (!bc.length) { cat.tasks.push(T.hold('loaf', rand(3, 6))); break; }
+      const c = pickOne(bc);
+      cat.tasks.push(T.go(c, rand(28, 38)), T.hold(pickOne(['loaf', 'sit', 'sit']), rand(5, 14), [cX(c), cZ(c) - 100]));
+      break;
+    }
+    default:
+      cat.tasks.push(T.go(farCell(cells, R.d, cat.x, cat.z, 80), rand(26, 38)), T.hold(pickOne(['stand', 'sit']), rand(1, 3)));
+  }
+}
+function turnTo(cat, target, rate) {
+  const d = angDiff(cat.h, target);
+  cat.h += Math.sign(d) * Math.min(Math.abs(d), rate);
+}
+// Yolu izle; önündeki hücre kapanmışsa (kapı kapandı) false ile vazgeç
+function follow(cat, t, speed, dt) {
+  cat.speed += (speed - cat.speed) * Math.min(1, dt * 4);
+  for (let guard = 0; guard < 4; guard++) {
+    const wp = t.path[t.i];
+    if (!wp) return 'done';
+    const dx = wp.x - cat.x, dz = wp.z - cat.z, d = Math.hypot(dx, dz);
+    if (d < 0.5) { t.i++; continue; }
+    const ahead = cellOf(cat.x + dx / d * 12, cat.z + dz / d * 12);
+    if (ahead !== cellOf(cat.x, cat.z) && !passable(ahead) && d > 12) return 'blocked';
+    const step = Math.min(d, cat.speed * dt);
+    cat.x += dx / d * step; cat.z += dz / d * step;
+    turnTo(cat, Math.atan2(dz, dx), dt * (speed > 100 ? 11 : 6));
+    if (step >= d) t.i++;
+    return 'moving';
+  }
+  return 'moving';
+}
+function startJump(cat, x, z, y, perch) {
+  cat.cur = { type: 'jump', fx: cat.x, fz: cat.z, fy: cat.y, x, z, y, perch, time: 0,
+    dur: 0.42 + Math.hypot(x - cat.x, z - cat.z) * 0.002 + Math.abs(y - cat.y) * 0.003 };
+}
+function stepCat(cat, dt) {
+  cat.t += dt;
+  let t = cat.cur;
+  if (!t) {
+    t = cat.tasks.shift();
+    if (!t) { decide(cat); return; }
+    cat.cur = t;
+    t.time = 0;
+    if (t.type === 'go') {
+      t.path = pathTo(cat, t.cell); t.i = 0;
+      if (!t.path) { cat.cur = null; cat.tasks = []; return; }
+    } else if (t.type === 'jumpOn') {
+      const [px, pz] = perchPoint(t.perch, cat);
+      startJump(cat, px, pz, t.perch.y, t.perch);
+      return;
+    } else if (t.type === 'jumpDown') {
+      const p = cat.perch;
+      const app = p ? p.app.filter(passable) : [];
+      const c = app.length ? app.reduce((b, c) => (Math.hypot(cX(c) - cat.x, cZ(c) - cat.z) < Math.hypot(cX(b) - cat.x, cZ(b) - cat.z) ? c : b))
+        : nearestPassable(cat.x, cat.z);
+      startJump(cat, cX(c), cZ(c), gY[c], null);
+      return;
+    }
+  }
+  t.time += dt;
+  switch (t.type) {
+    case 'go': {
+      cat.pose = t.speed > 100 ? 'run' : 'walk';
+      const st = follow(cat, t, t.speed, dt);
+      if (st !== 'moving') { cat.cur = null; if (st === 'blocked') cat.tasks = []; }
+      break;
+    }
+    case 'chase': {
+      const o = t.other;
+      if (o.perch || t.time > t.dur || Math.hypot(o.x - cat.x, o.z - cat.z) < 32) { cat.cur = null; break; }
+      if (!t.path || (t.repath -= dt) <= 0) {
+        t.repath = 0.4; t.i = 0;
+        t.path = pathTo(cat, cellOf(o.x, o.z)) || pathTo(cat, nearestPassable(o.x, o.z));
+        if (!t.path) { cat.cur = null; break; }
+      }
+      cat.pose = 'run';
+      if (follow(cat, t, rand(180, 220), dt) === 'blocked') cat.cur = null;
+      break;
+    }
+    case 'hold': {
+      cat.pose = t.pose;
+      cat.speed += (0 - cat.speed) * Math.min(1, dt * 6);
+      if (t.faceTo) turnTo(cat, Math.atan2(t.faceTo[1] - cat.z, t.faceTo[0] - cat.x), dt * 4);
+      if (t.time >= t.dur) cat.cur = null;
+      break;
+    }
+    case 'jump': {
+      cat.pose = 'jump';
+      const k = Math.min(1, t.time / t.dur), e = k * k * (3 - 2 * k);
+      cat.x = t.fx + (t.x - t.fx) * e;
+      cat.z = t.fz + (t.z - t.fz) * e;
+      cat.y = t.fy + (t.y - t.fy) * k + 4 * (18 + Math.abs(t.y - t.fy) * 0.3) * k * (1 - k);
+      if (Math.hypot(t.x - t.fx, t.z - t.fz) > 1) turnTo(cat, Math.atan2(t.z - t.fz, t.x - t.fx), dt * 12);
+      if (k >= 1) { cat.y = t.y; cat.perch = t.perch; cat.cur = null; }
+      break;
+    }
+  }
+  if (!cat.perch && (!cat.cur || cat.cur.type !== 'jump')) {
+    const c = cellOf(cat.x, cat.z);
+    if (c >= 0) cat.y += (gY[c] - cat.y) * Math.min(1, dt * 10);
+  }
+}
+// Pozu uygula: hedef poza yumuşak geçiş, yürüme/koşu bacak salınımı, kuyruk, bakınma, göz kırpma
+function poseCat(cat, dt, time) {
+  const P = cat.P, Tg = POSES[cat.pose] || POSES.stand, k = Math.min(1, dt * 6);
+  for (const key of POSE_KEYS) P[key] += (Tg[key] - P[key]) * k;
+  const { m } = cat, moving = cat.speed > 4, running = cat.speed > 100;
+  if (moving) cat.phase += dt * cat.speed * (running ? 0.075 : 0.12);
+  let by = P.by, pitch = P.pitch;
+  if (moving && cat.pose !== 'jump') {
+    by += running ? Math.sin(cat.phase * 2) * 1.6 : Math.abs(Math.sin(cat.phase)) * 0.6;
+    if (running) pitch += Math.sin(cat.phase) * 0.08;
+  }
+  if (cat.pose === 'sleep') by += Math.sin(time * 1.6 + cat.side) * 0.35;      // nefes
+  m.body.position.y = by;
+  m.body.rotation.z = pitch;
+  m.body.scale.set(19 * P.len, 9.5, 8.5 + (cat.pose === 'sleep' ? 1.5 : 0));
+  // bakınma ve göz kırpma
+  if ((cat.lookT -= dt) <= 0) {
+    cat.lookT = rand(1.5, 4);
+    cat.look = (['stand', 'sit', 'loaf'].includes(cat.pose) && Math.random() < 0.7) ? rand(-0.8, 0.8) : 0;
+  }
+  if (moving) cat.look = 0;
+  cat.lookCur = (cat.lookCur || 0) + ((cat.look || 0) - (cat.lookCur || 0)) * Math.min(1, dt * 3);
+  if ((cat.blinkT -= dt) <= 0) cat.blinkT = rand(2.5, 6);
+  const blink = cat.blinkT < 0.12 ? 0.1 : 1;
+  m.head.position.set(P.hx, P.hy, 0);
+  m.head.rotation.set(0, P.hyaw * cat.side + cat.lookCur, -P.hp + (cat.pose === 'groom' ? Math.sin(time * 7) * 0.15 : 0));
+  for (const e of m.eyes) e.scale.y = 1.1 * Math.max(0.06, P.eye * blink);
+  // bacaklar
+  const cp = Math.cos(pitch), sp = Math.sin(pitch);
+  const offs = running ? [0, 0.45, Math.PI, Math.PI + 0.45] : [0, Math.PI, Math.PI, 0];
+  m.legs.forEach((L2, i) => {
+    const lx = L2.lx * P.len, ly = -3.5;
+    const px = lx * cp - ly * sp, py = by + lx * sp + ly * cp;
+    L2.hip.position.set(px, py, L2.lz);
+    let a = moving ? Math.sin(cat.phase + offs[i]) * (running ? 0.85 : 0.42) : 0;
+    let len = Math.max(2, py / Math.cos(a) - 1.3);
+    if (cat.pose === 'jump') { a = L2.front ? 0.7 : -0.6; len = 15; }
+    if (cat.pose === 'scratch' && L2.front) { a = 1.15 + Math.sin(time * 14 + i) * 0.22; len = 15; }
+    L2.hip.rotation.z = a;
+    L2.leg.scale.y = len;
+    L2.paw.position.y = -len;
+  });
+  // kuyruk
+  const tx = -19 * P.len * cp - 2 * sp, ty = by - 19 * P.len * sp + 2 * cp;
+  m.tail[0].position.set(tx, ty, 0);
+  const wagAmp = cat.pose === 'sleep' ? 0.02 : moving ? 0.05 : 0.12;
+  m.tail.forEach((seg, i) => {
+    const wag = Math.sin(time * (moving ? 6 : 2.2) + i * 0.6 + cat.side) * wagAmp;
+    seg.rotation.z = (i === 0 ? P.tb : P.tc) + wag;
+    seg.rotation.y = i === 0 ? 0 : P.curl * cat.side + wag * 0.5;
+  });
+  m.root.position.set(cat.x, cat.y, -cat.z);
+  m.root.rotation.y = cat.h;
+}
+function updateCats(dt, time) {
+  if (!catsReady || !catsGroup.visible) return;
+  for (const cat of cats) { stepCat(cat, dt); poseCat(cat, dt, time); }
+  // kedi kapısı: yaklaşan kedinin itiş yönüne sallanır
+  let target = 0;
+  for (const cat of cats) {
+    if (Math.abs(cat.x - (FLAP.x0 + FLAP.x1) / 2) < 16 && Math.abs(cat.z - FLAP.z) < 22) target = cat.z < FLAP.z ? 0.9 : -0.9;
+  }
+  flapPivot.rotation.x += (target - flapPivot.rotation.x) * Math.min(1, dt * 8);
+  // odak modunda odanın dışındaki kediler de soluklaşır
+  for (const cat of cats) {
+    const inside = !ghostSpace || spaceAt(cat.x, cat.z, 0) === ghostSpace;
+    const a = inside ? 1 : fadeCur;
+    if (Math.abs(a - cat.opacity) < 0.005) continue;
+    cat.opacity = a;
+    for (const mm of cat.m.mats) { mm.transparent = a < 0.999; mm.opacity = a; mm.depthWrite = a >= 0.999; }
+  }
+}
+document.getElementById('tCats').addEventListener('change', e => { catsGroup.visible = e.target.checked; });
+
+/* =====================================================================
    8) DÖNGÜ
    ===================================================================== */
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -2065,6 +2720,7 @@ function frame() {
     setFade(f);
     if (f === 1 && !focused) { restoreGhosts(); setFade(1); }
   }
+  updateCats(dt, clock.elapsedTime);
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }
@@ -2079,6 +2735,9 @@ async function start() {
   } catch (_) { /* yazı tipi yüklenemezse sistem yazı tipi kullanılır */ }
   applyTheme();
   setVersion(initialVersion(), false);
+  // kediler dolaşabilsin diye iki odanın kapısı açık başlar
+  for (const n of ['Çalışma odası', 'Yatak odası']) { const d = doorNamed(n); d.target = 1; d.p = 0.999; }
+  initCats();
   buildLabels();
   resize();
   goal.r = view.r = fitRadius();
@@ -2086,7 +2745,8 @@ async function start() {
   window.addEventListener('resize', resize);
   clock.getDelta();
   requestAnimationFrame(frame);
-  window.__house = { doors, L, M, goal, view, camera, pickDoor, focusSpace, unfocus, SPACE, get focused() { return focused; }, ghosted, spinners, setVersion, get version() { return version; } };
+  window.__house = { doors, L, M, goal, view, camera, pickDoor, focusSpace, unfocus, SPACE, get focused() { return focused; }, ghosted, spinners, setVersion, get version() { return version; }, cats, passable, cellOf, PERCHES,
+    simulateCats: (sec, dt = 0.05) => { for (let t = 0; t < sec; t += dt) updateCats(dt, clock.elapsedTime + t); } };
 }
 start();
 </script>
