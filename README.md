@@ -17,7 +17,7 @@ Yerel sunucu isterseniz: `python3 -m http.server` → `http://localhost:8000`.
 | Odaya odaklan | odaya tıklama | dokunma | — |
 | Tüm daireye dön | boş alana ya da başka odaya tıklama | dokunma | Esc |
 | Kapı / dolap / portmanto kapağı aç-kapat | kapıya, kasasına ya da üstündeki lentoya tıklama | dokunma | — |
-| Tekli koltuğu 45° döndür | koltuğa tıklama | dokunma | — |
+| Tekli koltuğu / çalışma sandalyesini (V2) 45° döndür | koltuğa tıklama | dokunma | — |
 
 Paneldeki **Kapıları aç**, **Üstten bak**, **Sıfırla** düğmeleri ve **Etiketler** / **Mobilya** anahtarları da kullanılabilir.
 Bir odaya tıklandığında kamera pivotunu o odanın merkezine alır, odayı kadraja sığdırır ve diğer odalar soluklaşır;
@@ -80,7 +80,14 @@ Tüm ölçüler cm ve iç yüzden iç yüze. Sahnede 1 birim = 1 cm.
   Yatak odası ve çalışma odası kapıları açılınca yan duvara (Z eksenine) paralel durur.
 - **Yükseklik:** odalar 260 cm, koridor asma tavanı 235 cm.
 
-## Mobilya ve ekipman
+## Yerleşim versiyonları
+
+Paneldeki **Versiyon 1 / Versiyon 2** seçicisiyle iki yerleşim arasında geçilir. Seçim tarayıcıda hatırlanır;
+doğrudan bağlantı için adresin sonuna `#v1` ya da `#v2` eklenebilir. Mimari, salon, mutfak, koridor, banyo ve
+balkon iki versiyonda aynıdır; yalnızca balkon tarafındaki oda (260 × 410) ile cadde tarafındaki oda (280 × 256)
+eşyaları ve adları yer değiştirir.
+
+### Ortak
 
 - **Salon:** cam tarafındaki sol duvarda 120 × 35 × 200 kitaplık; kitaplığın 40 cm daha önünde tıklandıkça
   45° dönen tekli koltuk (salona, cama ya da kitaplığa çevrilebilir).
@@ -90,12 +97,24 @@ Tüm ölçüler cm ve iç yüzden iç yüze. Sahnede 1 birim = 1 cm.
 - **Koridor:** kısa kolda salon kapısının tam karşısında 96 × 38 × 230 cm boydan portmanto (iki kapaklı,
   içinde şapkalık rafı ve askı borusu); çelik kapının yanındaki duvarda 64 × 176 cm boy aynası; çelik kapının
   karşısında ayakkabılık.
-- **Çalışma odası:** kapıdan girince soldaki duvarın köşesinde, iki duvara 2 cm mesafeyle 150 × 150 × 5 cm
-  yükseltici platform; üzerinde EFNOTE 5 elektronik davul (kick, trampet, tom, yer tomu, hi-hat, crash, ride,
-  modül) ve taburesi. Çalışma masasının sağında, masaya dik, tuşları sandalyeye bakan X standında Roland
-  JUNO-Di (61 tuş, 100,8 × 30 × 10,4 cm). Ortak duvar boyunca sıralı gitar standında 4 gitar (1 akustik, 3 elektro).
-- **Yatak odası:** sağ duvara yaslı 155 cm karyola; sol duvarda 150 × 60 × 220 üç kapaklı dolap, kapaklar
-  odaya doğru açılır.
+
+### Versiyon 1 — çalışma odası balkon tarafında
+
+- **Çalışma odası (260 × 410):** kapıdan girince soldaki duvarın köşesinde, iki duvara 2 cm mesafeyle
+  150 × 150 × 5 cm platform; üzerinde EFNOTE 5 elektronik davul ve taburesi. Masanın sağında, masaya dik,
+  tuşları sandalyeye bakan X standında Roland JUNO-Di (61 tuş, 100,8 × 30 × 10,4 cm). Salon duvarı boyunca
+  sıralı gitar standında 4 gitar (1 akustik, 3 elektro).
+- **Yatak odası (280 × 256):** sağ duvara yaslı 155 cm karyola; sol duvarda 150 × 60 × 220 üç kapaklı dolap.
+
+### Versiyon 2 — odalar yer değiştirdi
+
+- **Yatak odası (260 × 410, balkon tarafı):** 155 cm yatak, başlığı salon duvarında; balkon kapısının önünde
+  60 cm boşluk ve halı. Yatağın kapı tarafında komodin ve lamba. Sağ duvarda, yatağın bittiği yerden kapı
+  tarafındaki duvara kadar 188 × 60 × 245 cm dört kapaklı gardırop (kapaklar odaya açılır).
+- **Çalışma odası (280 × 256, cadde tarafı):** cam köşesinde 150 × 150 × 5 cm platform ve EFNOTE 5 (davulcu
+  cama bakar); kapı duvarında X standında JUNO-Di, tuşları odaya bakar; klavyenin üstünde duvar askılarında
+  4 gitar; sol duvarda 140 × 60 çalışma masası ve monitör; ortada tıklandıkça 45° dönen çalışma sandalyesi
+  (klavyeye ya da masaya çevrilir).
 
 ## Ölçüleri değiştirme
 
