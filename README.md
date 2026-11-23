@@ -109,8 +109,11 @@ eşyaları ve adları yer değiştirir.
 ### Versiyon 2 — odalar yer değiştirdi
 
 - **Yatak odası (260 × 410, balkon tarafı):** 155 cm yatak, başlığı salon duvarında; balkon kapısının önünde
-  60 cm boşluk ve halı. Yatağın kapı tarafında komodin ve lamba. Sağ duvarda, yatağın bittiği yerden kapı
-  tarafındaki duvara kadar 188 × 60 × 245 cm dört kapaklı gardırop (kapaklar odaya açılır).
+  60 cm boşluk ve halı. Yatağın kapı tarafında komodin ve lamba. Tavana kadar (255 cm) L gardırop: sağ duvar
+  boyunca yataktan sonra 190 cm, köşeden dönüp kapı tarafındaki duvar boyunca oda kapısının kasasına kadar
+  160 cm, derinlik 60 cm. Köşe iki kolun ortak iç hacmi; içinde askı boruları, kapı yanındaki bölmede 4 raf,
+  üstte asma bölme. Beş sütunda altta uzun, üstte asma bölme kapağı olmak üzere 10 kapak; menteşeler köşeden
+  uzakta, kapaklar odaya açılır.
 - **Çalışma odası (280 × 256, cadde tarafı):** cam köşesinde 150 × 150 × 5 cm platform ve EFNOTE 5 (davulcu
   cama bakar); kapı duvarında X standında JUNO-Di, tuşları odaya bakar; klavyenin üstünde duvar askılarında
   4 gitar; sol duvarda 140 × 60 çalışma masası ve monitör; ortada tıklandıkça 45° dönen çalışma sandalyesi

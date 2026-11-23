@@ -1383,13 +1383,51 @@ inVersion(2, () => {
     F(hx, hx + 45, z1 + 5, z1 + 45, 0, 50, mat.woodLight);        // komodin (kapı tarafı)
     cyl(hx + 22, z1 + 25, 7, 50, 76, mat.white);                  // lamba
     F(hx + 20, hx + 190, L.study.z0 + 10, z0 - 8, 0.6, 1.6, mat.rug2); // halı: yatak ile balkon camı arası
-    // Gardırop: sağ duvarda, yatağın bittiği yerden kapı tarafındaki duvara kadar; 4 kapaklı, odaya açılır
-    const gz0 = z1 + 5, gz1 = L.study.z1 - 2, front = L.study.x1 - 58, gh = 245, n = 4, w = (gz1 - gz0) / n;
-    F(front, L.study.x1, gz0, gz1, 0, gh, mat.white);
-    for (let i = 0; i < n; i++) cabinetDoor({
-      name: `Gardırop kapağı ${i + 1}`, axis: 'z', c: front, a0: gz0 + i * w, a1: gz0 + (i + 1) * w,
-      hinge: i % 2 ? 'a1' : 'a0', swing: -1, y0: 2, y1: gh - 2,
-    });
+    // L gardırop, tavana kadar: sağ duvar boyunca yataktan sonra başlar, köşeden dönüp kapı tarafındaki duvar
+    // boyunca oda kapısının kasasına kadar uzanır. İçi boş gövde: altta askı borusu ve raflı bölme, üstte asma
+    // bölme rafı; köşe iki kolun ortak iç hacmi. Kapaklar (altta uzun, üstte asma bölme) odaya açılır.
+    const X1 = L.study.x1, Z1 = L.study.z1, D = 60, t = 2, gh = 255, split = 213;
+    const rz0 = z1 + 5;                  // sağ kolun başı: yataktan 5 cm sonra
+    const rx0 = X1 - D + t;              // sağ kolun gövde ön yüzü (kapaklar bunun önünde)
+    const fz0 = Z1 - D + t;              // kapı tarafı kolunun gövde ön yüzü
+    const tx0 = L.studyDoor.x1 + 2;      // kapı tarafı kolunun başı: kapı kasasından 2 cm sonra
+    const rail = (x, z, len, axis) => {
+      const m = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, len, 12), mat.chrome);
+      if (axis === 'z') m.rotation.x = Math.PI / 2; else m.rotation.z = Math.PI / 2;
+      m.position.set(x, 195, -z);
+      m.castShadow = m.receiveShadow = true;
+      furnParent.add(m);
+      furnitureMeshes.push(m);
+    };
+    // sağ kol: sırt, baş yanı, taban, tavan, asma bölme rafı, askı borusu (köşeye açık)
+    F(X1 - t, X1, rz0, fz0, 0, gh, mat.white);
+    F(rx0, X1 - t, rz0, rz0 + t, 0, gh, mat.white);
+    F(rx0, X1 - t, rz0 + t, fz0, 0, 8, mat.white);
+    F(rx0, X1 - t, rz0 + t, fz0, gh - t, gh, mat.white);
+    F(rx0, X1 - t, rz0 + t, fz0, split - t, split, mat.white);
+    rail((rx0 + X1) / 2, (rz0 + fz0) / 2, fz0 - rz0 - 4, 'z');
+    // kapı tarafı kolu (köşe dahil): sırt, baş yanı, taban, tavan, asma bölme rafı
+    F(tx0, X1, Z1 - t, Z1, 0, gh, mat.white);
+    F(tx0, tx0 + t, fz0, Z1 - t, 0, gh, mat.white);
+    F(tx0 + t, X1, fz0, Z1 - t, 0, 8, mat.white);
+    F(tx0 + t, X1, fz0, Z1 - t, gh - t, gh, mat.white);
+    F(tx0 + t, X1, fz0, Z1 - t, split - t, split, mat.white);
+    // kapı yanındaki bölme raflı, gerisi ve köşe askılı
+    const dv = tx0 + 50;
+    F(dv - 1, dv + 1, fz0, Z1 - t, 8, split - t, mat.white);
+    for (const y of [52, 94, 136, 178]) F(tx0 + t, dv - 1, fz0, Z1 - t, y - t, y, mat.white);
+    rail((dv + X1) / 2, (fz0 + Z1) / 2, X1 - dv - 4, 'x');
+    // kapaklar: her sütunda altta uzun kapak, üstte asma bölme kapağı; menteşeler köşeden uzakta
+    let k = 0;
+    const doorPair = (axis, c, a0, a1) => {
+      for (const [y0, y1] of [[2, split - 1], [split + 1, gh - 1]]) cabinetDoor({
+        name: `Gardırop kapağı ${++k}`, axis, c, a0, a1, hinge: 'a0', swing: -1, y0, y1,
+      });
+    };
+    const rn = 3, rw = (fz0 - t - rz0) / rn;               // sağ kol: 3 sütun
+    for (let i = 0; i < rn; i++) doorPair('z', rx0, rz0 + i * rw, rz0 + (i + 1) * rw);
+    const tn = 2, tw = (rx0 - t - tx0) / tn;               // kapı tarafı kolu: 2 sütun
+    for (let i = 0; i < tn; i++) doorPair('x', fz0, tx0 + i * tw, tx0 + (i + 1) * tw);
   }
   // Çalışma odası (cadde tarafındaki 280 × 256 oda): cam köşesinde davul platformu (davulcu cama bakar),
   // kapı duvarında klavye ve üstünde duvar askılarında gitarlar, sol duvarda masa, ortada döner sandalye
